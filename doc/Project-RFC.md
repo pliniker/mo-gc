@@ -59,7 +59,7 @@ Performance for multiple application threads writing to an mpsc, with each
 write causing an allocation, can be improved based on the
 [single writer principle](http://mechanical-sympathy.blogspot.co.uk/2011/09/single-writer-principle.html)
 by 1) giving each application thread its own channel and 2) buffering journal
-entries before passing a reference to the buffer through the channel.
+entries and passing a reference to the buffer through the channel.
 
 Buffering journal entries should give good cache locality and reduce the number
 of extra allocations per object created. The application threads are responsible
@@ -70,7 +70,7 @@ When newly rooting a pointer to the stack, the current buffer must be accessed.
 One solution is to use Thread Local Storage so that each thread will be able
 to access its own buffer at any time. The overhead of looking up the TLS
 pointer is a couple of extra instructions in a release build to check that
-the data has been initialized:
+the buffer data has been initialized:
 
     cmpq $1, %fs:offset
     je .label
@@ -100,29 +100,42 @@ there will naturally be an ordering problem:
 Thread A may, for a pointer, write the following to its journal:
 
 |Action|adjustment| |
-|------|----------|-|
-|new pointer|+||
-|clone pointer|+|(move pointer to Thread B)|
-|drop pointer|-||
+| --- | --- | --- |
+|new pointer|+1||
+|clone pointer|+1|(move cloned pointer to Thread B)|
+|drop pointer|-1||
 
 Thread B may do the following some time - short or long - after receiving the
 cloned pointer:
 
-|drop pointer|-||
+|Action|adjustment| |
+| --- | --- | --- |
+|drop pointer|-1|(drop cloned pointer)|
 
 The order in which these adjustments are processed by the GC thread may well
 be out of order, and there is no information available to restore the correct
-order. Here, learning from [Bacon2003][1], decrement adjustments should be
+order. The decrement from Thread B might be processed first, followed by the
+first increment from Thread A, giving a reference count of 0.
+
+Here, learning from [Bacon2003][1], decrement adjustments should be
 buffered by an amount of time sufficient to clear all increment adjustments
 that occurred prior to those decrements. An appropriate amount of time might
-be indicated by the GC thread scanning the current set of application thread's
-buffers further iteration.
+be provided by scanning the application thread's
+buffers one further iteration before applying the buffered decrements.
 
 Increment adjustments can be applied immediately, always.
 
 # Collector Implementation
 
 Tries.
+
+# Immutable Data Structures
+
+To prevent data races between the application threads and the GC thread, all 
+GC-managed data structures that contain pointers to other GC-managed objects 
+must be immutable in those relationshis. That is, a `GcRoot<Vec<i32>>` can 
+be mutable but a `GcRoot<Vec<GcBox<i32>>>` must be immutable once the `Vec`
+has been placed under the GC's management.
 
 # Benchmarking
 
@@ -141,13 +154,15 @@ application threads CPU time.
 
 Nested GC-managed pointer structures must be immutable in those relationships,
 the added cost on the application threads is the requirement for persistent
-data structures. This is necessary to avoid data races between the application
-and GC threads.
+data structures. The main downside of this is the extra allocations and
+garbage generated. In some circumstances there could be enormous amounts of
+garbage generated, raising the overall overhead of using the GC.
 
 At least this one language/compiler safety issue remains: referencing
-GC-managed pointers in a `drop()` is currently considered safe but is of course
-unsafe as the order of collection is non-deterministic leading to possible
-use-after-free.
+GC-managed pointers in a `drop()` is currently considered safe as the compiler
+has no awareness of the GC, but doing so is of course unsafe as the order of 
+collection is non-deterministic leading to possible use-after-free in custom
+`drop()` functions.
 
 # Compatibility
 
@@ -173,11 +188,13 @@ planned [tracing hooks][5].
 Any form of copying or moving collector would require a custom allocator and a
 read barrier of some form. The barrier could be implemented on the root
 smart pointers with the added expense of the application threads having to check
-whether the pointer must be updated on every dereference.
+whether the pointer must be updated on every dereference. There are pitfalls
+here though, and it may be necessary to use the future tracing hooks to
+discover all roots to avoid bad things happening.
 
 ## Parallel GC
 
-The data structures used in the GC should be amenable to parallelizing tracing.
+The tries used in the GC should be amenable to parallelizing tracing.
 
 ## Official Rust GC Runtime
 
@@ -186,8 +203,9 @@ language.
 
 # Patent Issues
 
-I have read through the patents granted to David F. Bacon that cover reference
-counting and have come to the conclusion that nothing described here infringes.
+I have read through the patents granted to IBM and David F. Bacon that cover
+reference counting and have come to the conclusion that nothing described here
+infringes.
 
 I have not read further afield though. My assumption has been that there is
 prior art for most garbage collection methods at this point.
