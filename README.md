@@ -15,7 +15,7 @@ and the application threads besides the inc/dec journal, all data structures
 that contain nested GC-managed pointers must be immutable in their GC-managed
 relationships: persistent data structures must be used to avoid data races.
 
-[Technical RFC](http://github.com/pliniker/mo-gc/blob/text/doc/Project-RFC.md)
+[Technical RFC](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
 and [discussion](https://github.com/pliniker/mo-gc/issues/1)
 
 ### Tradeoffs
