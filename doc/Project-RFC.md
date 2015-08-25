@@ -1,6 +1,6 @@
 
 * Date: 2015-08-24
-* Discussion issue: [mo-gc#1](https://github.com/pliniker/mo-gc/issues/1)
+* Discussion issue: pliniker/mo-gc#1
 
 # Summary
 
@@ -9,13 +9,199 @@ pointers on the stack that write reference-count increments and decrements to a
 write-only journal. The reference-count journal is read by a GC thread that
 maintains the actual reference count numbers in a cache of GC roots. When a
 reference count reaches zero, the GC thread moves the pointer to a heap cache
-data structure that keeps no reference counts but that is used for mark and
-sweep collection.
+data structure that keeps no reference counts but that is used by a tracing
+collector.
 
 Because the GC thread has no synchronization between itself
 and the application threads besides the inc/dec journal, all data structures
 that contain nested GC-managed pointers must be immutable in their GC-managed
 relationships: persistent data structures must be used to avoid data races.
 
-...
-...
+# Why?
+
+Rust's static memory management model is ideal, or sufficent, for most purposes.
+Any data structure can be created, with varying degree of unsafe code and/or
+`std::rc::Rc` with weak references.
+
+However, some specific applications may require a GC runtime, such as hosting a
+virtual machine or [interpreter][3] on Rust.
+
+There may be other use cases, such as managing cyclic graphs, where using a
+GC in such a specific instance may well be simpler than managing unsafe code
+and lifetimes directly in Rust, if the overhead is acceptable.
+
+This is a hybrid reference-counting/tracing garbage collector aimed at
+minimizing pause times and providing an easy API
+
+Further, this implementation doesn't require an invasive runtime: it does not
+depend on stop-the-world and stack scanning.
+
+# Assumptions
+
+This RFC assumes the use of the default Rust allocator, jemalloc, throughout
+the GC. No custom allocator is described here at this time. Correspondingly,
+the performance characteristics of jemalloc should be assumed.
+
+# Journal Implementation
+
+## Application Threads
+
+The purpose of using a journal is to reduce the burden on the application
+threads as much as possible, pushing as much workload as possible over to the
+GC thread.
+
+To give an idea of how this should work, in the most straightforward
+implementation, the journal can simply be a `std::sync::mpsc` channel shared
+between application threads and sending reference count adjustments to the
+GC thread.
+
+Performance for multiple application threads writing to an mpsc, with each
+write causing an allocation, can be improved based on the
+[single writer principle](http://mechanical-sympathy.blogspot.co.uk/2011/09/single-writer-principle.html)
+by 1) giving each application thread its own channel and 2) buffering journal
+entries before passing a reference to the buffer through the channel.
+
+Buffering journal entries should give good cache locality and reduce the number
+of extra allocations per object created. The application threads are responsible
+for allocating new buffers when they have filled the current one, the GC thread
+is responsible for freeing those buffers when they have been fully read.
+
+When newly rooting a pointer to the stack, the current buffer must be accessed.
+One solution is to use Thread Local Storage so that each thread will be able
+to access its own buffer at any time. The overhead of looking up the TLS
+pointer is a couple of extra instructions in a release build to check that
+the data has been initialized:
+
+    cmpq $1, %fs:offset
+    je .label
+
+A journal buffer maintains a count at offset 0 to indicate how many words of
+adjustment data have been written. This count should be written to using
+[release](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html) ordering
+while the GC thread should read the count using acquire ordering.
+
+My suggestion is that the buffer size should equal the page size.
+
+Finally, it should be noted that the root smart-pointers shouldn't necessarily
+be churning out reference count adjustments. This is Rust: prefer to borrow
+a root smart-pointer before cloning it. This is one of the main features that
+makes implementing this in Rust so attractive.
+
+## Garbage Collection Thread
+
+In the simplest `std::sync::mpsc` use case, the GC thread reads reference count
+adjustments from the channel. For each inc/dec adjustment, it must look up the
+associated pointer in a data structure and update the total reference count
+for that pointer.
+
+In the case of multiple channels, each sending buffers of adjustments at a time,
+there will naturally be an ordering problem:
+
+Thread A may, for a pointer, write the following to its journal:
+
+|Action|adjustment| |
+|------|----------|-|
+|new pointer|+||
+|clone pointer|+|(move pointer to Thread B)|
+|drop pointer|-||
+
+Thread B may do the following some time - short or long - after receiving the
+cloned pointer:
+
+|drop pointer|-||
+
+The order in which these adjustments are processed by the GC thread may well
+be out of order, and there is no information available to restore the correct
+order. Here, learning from [Bacon2003][1], decrement adjustments should be
+buffered by an amount of time sufficient to clear all increment adjustments
+that occurred prior to those decrements. An appropriate amount of time might
+be indicated by the GC thread scanning the current set of application thread's
+buffers further iteration.
+
+Increment adjustments can be applied immediately, always.
+
+# Collector Implementation
+
+Tries.
+
+# Benchmarking
+
+Benchmarking should be primarily done in a single threaded context, where the
+overhead of the GC will be measurable against the application code.
+
+Comparisons should be made against purely using Rust's static memory
+management.
+
+# Tradeoffs
+
+Overall throughput will be lower than mark and sweep because of the journal
+overhead. This would show most measureably on a single processor system. On
+a multiprocessor system, the GC thread will interfere less with the
+application threads CPU time.
+
+Nested GC-managed pointer structures must be immutable in those relationships,
+the added cost on the application threads is the requirement for persistent
+data structures. This is necessary to avoid data races between the application
+and GC threads.
+
+At least this one language/compiler safety issue remains: referencing
+GC-managed pointers in a `drop()` is currently considered safe but is of course
+unsafe as the order of collection is non-deterministic leading to possible
+use-after-free.
+
+# Compatibility
+
+As the GC takes over the lifetime management of any objects put under its
+control - and that transfer of control is completely under the control of
+the programmer - any Rust libraries should work with it, including low-level
+libraries such as [coroutine-rs](https://github.com/rustcc/coroutine-rs) and
+by extension [mioco](https://github.com/dpc/mioco).
+
+# Improvements
+
+## Compiler Plugin
+
+It is possible to give the compiler some degree of awareness of GC requirements
+through custom plugins, as implemented in [Manishearth/rust-gc][4]. The same
+may be applicable here.
+
+In the future, this implementation would surely benefit from aspects of the
+planned [tracing hooks][5].
+
+## Copying Collector
+
+Any form of copying or moving collector would require a custom allocator and a
+read barrier of some form. The barrier could be implemented on the root
+smart pointers with the added expense of the application threads having to check
+whether the pointer must be updated on every dereference.
+
+## Parallel GC
+
+The data structures used in the GC should be amenable to parallelizing tracing.
+
+## Official Rust GC Runtime
+
+Whatever form this takes, it is likely to feel like a seamless addition to the
+language.
+
+# Patent Issues
+
+I have read through the patents granted to David F. Bacon that cover reference
+counting and have come to the conclusion that nothing described here infringes.
+
+I have not read further afield though. My assumption has been that there is
+prior art for most garbage collection methods at this point.
+
+# References and Further Reading
+
+* [Bacon2003][1] Bacon et al, A Pure Reference Counting Garbage Collector
+* [Bacon2004][2] Bacon et al, A Unified Theory of Garbage Collection
+* [Oxischeme][3] Nick Fitzgerald, Memory Management in Oxischeme
+* [Manishearth/rust-gc][4] manishearth, rust-gc project
+* [Rust blog][5] Rust in 2016
+
+[1]: http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
+[2]: http://www.cs.virginia.edu/~cs415/reading/bacon-garbage.pdf
+[3]: http://fitzgeraldnick.com/weblog/60/
+[4]: https://github.com/Manishearth/rust-gc
+[5]: http://blog.rust-lang.org/2015/08/14/Next-year.html
