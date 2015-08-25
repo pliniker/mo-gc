@@ -1,6 +1,6 @@
 
 * Date: 2015-08-24
-* Discussion issue: pliniker/mo-gc#1
+* Discussion issue: [pliniker/mo-gc#1](https://github.com/pliniker/mo-gc/issues/1)
 
 # Summary
 
@@ -24,17 +24,20 @@ Any data structure can be created, with varying degree of unsafe code and/or
 `std::rc::Rc` with weak references.
 
 However, some specific applications may require a GC runtime, such as hosting a
-virtual machine or [interpreter][3] on Rust.
+virtual machine or [interpreter][3] on Rust. This project describes a GC that
+is not tied to any particular VM or other runtime.
 
 There may be other use cases, such as managing cyclic graphs, where using a
-GC in such a specific instance may well be simpler than managing unsafe code
-and lifetimes directly in Rust, if the overhead is acceptable.
+GC in a specific instance may well be simpler than managing unsafe code
+and lifetimes directly in Rust, if the runtime overhead is acceptable.
 
-This is a hybrid reference-counting/tracing garbage collector aimed at
-minimizing pause times and providing an easy API
+This hybrid reference-counting/tracing garbage collector is aimed at
+minimizing pause times and providing an easy API with the usability of
+[Box](https://doc.rust-lang.org/std/boxed/struct.Box.html) on the
+root smart pointers.
 
-Further, this implementation doesn't require an invasive runtime: it does not
-depend on stop-the-world and stack scanning.
+Finally, this implementation doesn't require an invasive compiler-aware
+runtime: it does not depend on doing stop-the-world and stack scanning.
 
 # Assumptions
 
@@ -127,7 +130,32 @@ Increment adjustments can be applied immediately, always.
 
 # Collector Implementation
 
-Tries.
+While more advanced or efficient algorithms might be applied here, this section
+will describe how a straightforward mark and sweep can be applied.
+
+As in [Manishearth/rust-gc][4], all types participating in GC must implement
+a trait that allows that type to be traced. (This is an inconvenience that
+a compiler plugin may be able to alleviate for many cases.)
+
+The GC thread maintains two trie structures: one to map from roots to 
+reference counts; a second to map from heap objects to any metadata needed to
+run `drop()` against them and bits for marking while tracing.
+
+The roots trie is traversed, calling the trace function for each. Every visited
+object is marked in the heap trie.
+
+Then the heap trie is traversed and every unmarked entry is `drop()`ped and
+the live objects unmarked.
+
+As long as GC-managed pointers in GC-managed objects are never modified, 
+the trace will not run into data races and mark and sweep can run in parallel
+with the application threads.
+
+It seems probable that a generational approach can be used: if data structures 
+must be immutable, then there can never be references from the old generation
+into a newer generation. Therefore it may be possible to apply a simple
+generational algorithm to avoid tracing the entire heap on every 
+collection.
 
 # Immutable Data Structures
 
@@ -164,7 +192,7 @@ has no awareness of the GC, but doing so is of course unsafe as the order of
 collection is non-deterministic leading to possible use-after-free in custom
 `drop()` functions.
 
-# Compatibility
+# Rust Library Compatibility
 
 As the GC takes over the lifetime management of any objects put under its
 control - and that transfer of control is completely under the control of
@@ -196,11 +224,6 @@ discover all roots to avoid bad things happening.
 
 The tries used in the GC should be amenable to parallelizing tracing.
 
-## Official Rust GC Runtime
-
-Whatever form this takes, it is likely to feel like a seamless addition to the
-language.
-
 # Patent Issues
 
 I have read through the patents granted to IBM and David F. Bacon that cover
@@ -210,7 +233,7 @@ infringes.
 I have not read further afield though. My assumption has been that there is
 prior art for most garbage collection methods at this point.
 
-# References and Further Reading
+# References
 
 * [Bacon2003][1] Bacon et al, A Pure Reference Counting Garbage Collector
 * [Bacon2004][2] Bacon et al, A Unified Theory of Garbage Collection
