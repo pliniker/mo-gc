@@ -35,6 +35,9 @@ avoiding pause times and providing an API with the type of usability of
 [Box](https://doc.rust-lang.org/std/boxed/struct.Box.html) on the
 root smart pointers.
 
+Adding a native garbage collector runtime to Rust appears to be (justifiably
+so) a low priority for the core team.
+
 Finally, this implementation doesn't require a compiler-aware
 runtime: it does not depend on doing stop-the-world and stack scanning.
 
@@ -260,9 +263,15 @@ prior art for most garbage collection methods at this point.
 * [Oxischeme][3] Nick Fitzgerald, Memory Management in Oxischeme
 * [Manishearth/rust-gc][4] manishearth, rust-gc project
 * [Rust blog][5] Rust in 2016
+* [rust-lang/rust#11399][6] Add garbage collector to std::gc
+* [rust-lang/rfcs#415][7] Garbage collection
+* [rust-lang/rust#2997][8] Tracing GC in rust
 
 [1]: http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
 [2]: http://www.cs.virginia.edu/~cs415/reading/bacon-garbage.pdf
 [3]: http://fitzgeraldnick.com/weblog/60/
 [4]: https://github.com/Manishearth/rust-gc
 [5]: http://blog.rust-lang.org/2015/08/14/Next-year.html
+[6]: https://github.com/rust-lang/rust/pull/11399
+[7]: https://github.com/rust-lang/rfcs/issues/415
+[8]: https://github.com/rust-lang/rust/issues/2997
