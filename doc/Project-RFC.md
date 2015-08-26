@@ -31,7 +31,7 @@ GC in a specific instance may well be simpler than managing unsafe code
 and lifetimes directly in Rust, if the runtime overhead is acceptable.
 
 This [hybrid][2] reference-counting/tracing garbage collector is aimed at
-minimizing pause times and providing an API with the familiarity of
+avoiding pause times and providing an API with the type of usability of
 [Box](https://doc.rust-lang.org/std/boxed/struct.Box.html) on the
 root smart pointers.
 
@@ -48,9 +48,9 @@ the performance characteristics of jemalloc should be assumed.
 
 ## Application Threads
 
-The purpose of using a journal is to reduce the burden on the application
+The purpose of using a journal is to minimize the burden on the application
 threads as much as possible, pushing as much workload as possible over to the
-GC thread.
+GC thread, while avoiding pauses.
 
 To give an idea of how this should work, in the most straightforward
 implementation, the journal can simply be a `std::sync::mpsc` channel shared
