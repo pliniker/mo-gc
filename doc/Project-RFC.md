@@ -6,37 +6,36 @@
 
 Application threads maintain precise-rooted GC-managed pointers through smart
 pointers on the stack that write reference-count increments and decrements to a
-write-only journal. The reference-count journal is read by a GC thread that
-maintains the actual reference count numbers in a cache of GC roots. When a
+journal. The reference-count journal is read by a GC thread that
+maintains the actual reference count numbers in a cache of roots. When a
 reference count reaches zero, the GC thread moves the pointer to a heap cache
-data structure that keeps no reference counts but that is used by a tracing
-collector.
+data structure that is used by a tracing collector.
 
 Because the GC thread has no synchronization between itself
-and the application threads besides the inc/dec journal, all data structures
+and the application threads besides the journal, all data structures
 that contain nested GC-managed pointers must be immutable in their GC-managed
 relationships: persistent data structures must be used to avoid data races.
 
 # Why?
 
 Rust's static memory management model is ideal, or sufficent, for most purposes.
-Any data structure can be created, with varying degree of unsafe code and/or
+Any data structure can be created, with varying degree of unsafe code or
 `std::rc::Rc` with weak references.
 
 However, some specific applications may require a GC runtime, such as hosting a
 virtual machine or [interpreter][3] on Rust. This project describes a GC that
-is not tied to any particular VM or other runtime.
+is not tied to any particular runtime.
 
 There may be other use cases, such as managing cyclic graphs, where using a
 GC in a specific instance may well be simpler than managing unsafe code
 and lifetimes directly in Rust, if the runtime overhead is acceptable.
 
 This hybrid reference-counting/tracing garbage collector is aimed at
-minimizing pause times and providing an easy API with the usability of
+minimizing pause times and providing an API with the familiarity of
 [Box](https://doc.rust-lang.org/std/boxed/struct.Box.html) on the
 root smart pointers.
 
-Finally, this implementation doesn't require an invasive compiler-aware
+Finally, this implementation doesn't require a compiler-aware
 runtime: it does not depend on doing stop-the-world and stack scanning.
 
 # Assumptions
@@ -56,10 +55,10 @@ GC thread.
 To give an idea of how this should work, in the most straightforward
 implementation, the journal can simply be a `std::sync::mpsc` channel shared
 between application threads and sending reference count adjustments to the
-GC thread.
+GC thread, that is, +1 and -1 for pointer clone and drop respectively.
 
 Performance for multiple application threads writing to an mpsc, with each
-write causing an allocation, can be improved based on the
+write causing an allocation, can be improved on based on the
 [single writer principle](http://mechanical-sympathy.blogspot.co.uk/2011/09/single-writer-principle.html)
 by 1) giving each application thread its own channel and 2) buffering journal
 entries and passing a reference to the buffer through the channel.
@@ -83,7 +82,8 @@ adjustment data have been written. This count should be written to using
 [release](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html) ordering
 while the GC thread should read the count using acquire ordering.
 
-My suggestion is that the buffer size should equal the page size.
+My suggestion is that the buffer size should equal the page size, though
+benchmarking will permit discovery of an optimum size.
 
 Finally, it should be noted that the root smart-pointers shouldn't necessarily
 be churning out reference count adjustments. This is Rust: prefer to borrow
@@ -97,8 +97,8 @@ adjustments from the channel. For each inc/dec adjustment, it must look up the
 associated pointer in a data structure and update the total reference count
 for that pointer.
 
-In the case of multiple channels, each sending buffers of adjustments at a time,
-there will naturally be an ordering problem:
+In the case of multiple channels, each sending a buffer of adjustments at a
+time, there will naturally be an ordering problem:
 
 Thread A may, for a pointer, write the following to its journal:
 
@@ -108,7 +108,7 @@ Thread A may, for a pointer, write the following to its journal:
 |clone pointer|+1|(move cloned pointer to Thread B)|
 |drop pointer|-1||
 
-Thread B may do the following some time - short or long - after receiving the
+Thread B may do the following a brief moment later after receiving the
 cloned pointer:
 
 |Action|adjustment| |
@@ -137,7 +137,7 @@ As in [Manishearth/rust-gc][4], all types participating in GC must implement
 a trait that allows that type to be traced. (This is an inconvenience that
 a compiler plugin may be able to alleviate for many cases.)
 
-The GC thread maintains two trie structures: one to map from roots to 
+The GC thread maintains two trie structures: one to map from roots to
 reference counts; a second to map from heap objects to any metadata needed to
 run `drop()` against them and bits for marking while tracing.
 
@@ -147,23 +147,39 @@ object is marked in the heap trie.
 Then the heap trie is traversed and every unmarked entry is `drop()`ped and
 the live objects unmarked.
 
-As long as GC-managed pointers in GC-managed objects are never modified, 
-the trace will not run into data races and mark and sweep can run in parallel
-with the application threads.
+### Immutable Data Structures
 
-It seems probable that a generational approach can be used: if data structures 
-must be immutable, then there can never be references from the old generation
-into a newer generation. Therefore it may be possible to apply a simple
-generational algorithm to avoid tracing the entire heap on every 
-collection.
+To prevent data races between the application threads and the GC thread, all
+GC-managed data structures that contain pointers to other GC-managed objects
+must be immutable in those relationships. That is, a `GcRoot<Vec<i32>>` can
+contain mutable data but a `GcRoot<Vec<GcBox<i32>>>` must be immutable once
+the `Vec` has been placed under the GC's management.
 
-# Immutable Data Structures
+To apply some sort of metaphor, there are atomic GC-managed objects and
+non-atomic GC-managed objects:
 
-To prevent data races between the application threads and the GC thread, all 
-GC-managed data structures that contain pointers to other GC-managed objects 
-must be immutable in those relationshis. That is, a `GcRoot<Vec<i32>>` can 
-be mutable but a `GcRoot<Vec<GcBox<i32>>>` must be immutable once the `Vec`
-has been placed under the GC's management.
+* atom: a GC-managed object that has zero references to other GC-managed
+objects, in other words, it is indivisible into further GC-managed objects.
+* non-atomic: a GC-managed data structure that is composed of other GC-managed
+objects, in other words, the trace() function must recurse into it.
+
+Atomic objects may be mutable, non-atomic objects must be immutable.
+
+Applying a compile-time distinction between these may be possible using the
+type system. Indeed, presenting a safe API is one of the challenges in
+implementing this.
+
+### Generational Optimization
+
+Since non-atomic objects must be immutable, a consequence is that there can
+never be references from the old generation into a newer generation. This
+makes it a simple extension to apply mark and sweep on a frequent basis to
+newer objects while tracing the whole heap only infrequently.
+
+### Parallel Collection
+
+The tries used in the GC should be amenable to parallelizing tracing which
+may be particularly beneficial in conjunction with tracing the whole heap.
 
 # Benchmarking
 
@@ -188,7 +204,7 @@ garbage generated, raising the overall overhead of using the GC.
 
 At least this one language/compiler safety issue remains: referencing
 GC-managed pointers in a `drop()` is currently considered safe as the compiler
-has no awareness of the GC, but doing so is of course unsafe as the order of 
+has no awareness of the GC, but doing so is of course unsafe as the order of
 collection is non-deterministic leading to possible use-after-free in custom
 `drop()` functions.
 
@@ -219,10 +235,6 @@ smart pointers with the added expense of the application threads having to check
 whether the pointer must be updated on every dereference. There are pitfalls
 here though, and it may be necessary to use the future tracing hooks to
 discover all roots to avoid bad things happening.
-
-## Parallel GC
-
-The tries used in the GC should be amenable to parallelizing tracing.
 
 # Patent Issues
 
