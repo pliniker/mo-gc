@@ -30,7 +30,7 @@ There may be other use cases, such as managing cyclic graphs, where using a
 GC in a specific instance may well be simpler than managing unsafe code
 and lifetimes directly in Rust, if the runtime overhead is acceptable.
 
-This hybrid reference-counting/tracing garbage collector is aimed at
+This [hybrid][2] reference-counting/tracing garbage collector is aimed at
 minimizing pause times and providing an API with the familiarity of
 [Box](https://doc.rust-lang.org/std/boxed/struct.Box.html) on the
 root smart pointers.
@@ -118,12 +118,14 @@ cloned pointer:
 The order in which these adjustments are processed by the GC thread may well
 be out of order, and there is no information available to restore the correct
 order. The decrement from Thread B might be processed first, followed by the
-first increment from Thread A, giving a reference count of 0.
+first increment from Thread A, giving a momentary reference count of 0. The
+collector may kick in at that point, freeing the object and resulting in a
+possible use-after-free and possibly a double-free.
 
 Here, learning from [Bacon2003][1], decrement adjustments should be
 buffered by an amount of time sufficient to clear all increment adjustments
 that occurred prior to those decrements. An appropriate amount of time might
-be provided by scanning the application thread's
+be provided by scanning the application threads'
 buffers one further iteration before applying the buffered decrements.
 
 Increment adjustments can be applied immediately, always.
@@ -158,7 +160,7 @@ the `Vec` has been placed under the GC's management.
 To apply some sort of metaphor, there are atomic GC-managed objects and
 non-atomic GC-managed objects:
 
-* atom: a GC-managed object that has zero references to other GC-managed
+* atomic: a GC-managed object that has zero references to other GC-managed
 objects, in other words, it is indivisible into further GC-managed objects.
 * non-atomic: a GC-managed data structure that is composed of other GC-managed
 objects, in other words, the trace() function must recurse into it.
