@@ -261,12 +261,13 @@ prior art for most garbage collection methods at this point.
 * [Bacon2003][1] Bacon et al, A Pure Reference Counting Garbage Collector
 * [Bacon2004][2] Bacon et al, A Unified Theory of Garbage Collection
 * [Oxischeme][3] Nick Fitzgerald, Memory Management in Oxischeme
-* [Manishearth/rust-gc][4] manishearth, rust-gc project
+* [Manishearth/rust-gc][4] Manish Goregaokar, rust-gc project
 * [Rust blog][5] Rust in 2016
 * [rust-lang/rust#11399][6] Add garbage collector to std::gc
 * [rust-lang/rfcs#415][7] Garbage collection
 * [rust-lang/rust#2997][8] Tracing GC in rust
 * [Mechanical Sympathy][9] Martin Thompson, Single Writer Principle
+* [michaelwoerister/rs-persistent-datastructures][10] Michael Woerister, HAMT in Rust
 
 [1]: http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
 [2]: http://www.cs.virginia.edu/~cs415/reading/bacon-garbage.pdf
@@ -277,3 +278,4 @@ prior art for most garbage collection methods at this point.
 [7]: https://github.com/rust-lang/rfcs/issues/415
 [8]: https://github.com/rust-lang/rust/issues/2997
 [9]: http://mechanical-sympathy.blogspot.co.uk/2011/09/single-writer-principle.html
+[10]: https://github.com/michaelwoerister/rs-persistent-datastructures
