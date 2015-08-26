@@ -19,22 +19,21 @@ and [discussion](https://github.com/pliniker/mo-gc/issues/1)
 
 ### Tradeoffs
 
-* no stop-the world
-* low overhead on application threads
+* no stop-the-world pauses whatsoever
 * multiprocessor friendly - GC runs in parallel with application threads
-* opt-in standalone library
+* opt-in standalone library not tied to any VM or other runtime
 
 But:
 
-* GC-managed data structures containing GC-managed pointers must be immutable
+* throughput overhead on application threads is the use of the journal and
+the need for persistent data structures
 * potentially a lot of garbage is created
-* difficult, perhaps infeasible, to adapt to a copying collector
 
 ### About this Project
 
 * Copyright &copy; 2015 Peter Liniker <peter.liniker@gmail.com>
 * Licensed under the MPLv2
 
-Since I visualize this algorithm as a robot chasing frantically
+Since I picture this algorithm as a robot chasing frantically
 after all the garbage, never quite catching up, it is named for
 [M-O](http://pixar.wikia.com/wiki/M-O), the cleaning robot from WALL-E.
