@@ -36,4 +36,4 @@ the need for persistent data structures
 
 Since I picture this algorithm as a robot chasing frantically
 after all the garbage, never quite catching up, it is named for
-[M-O](http://pixar.wikia.com/wiki/M-O), the cleaning robot from WALL-E.
+[M-O](http://pixar.wikia.com/wiki/M-O), the cleaning robot from [WALL-E](https://www.youtube.com/watch?v=mfLHhnDzPcc).
