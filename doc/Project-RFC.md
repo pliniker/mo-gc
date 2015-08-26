@@ -62,7 +62,7 @@ GC thread, that is, +1 and -1 for pointer clone and drop respectively.
 
 Performance for multiple application threads writing to an mpsc, with each
 write causing an allocation, can be improved on based on the
-[single writer principle](http://mechanical-sympathy.blogspot.co.uk/2011/09/single-writer-principle.html)
+[single writer principle][9]
 by 1) giving each application thread its own channel and 2) buffering journal
 entries and passing a reference to the buffer through the channel.
 
@@ -266,6 +266,7 @@ prior art for most garbage collection methods at this point.
 * [rust-lang/rust#11399][6] Add garbage collector to std::gc
 * [rust-lang/rfcs#415][7] Garbage collection
 * [rust-lang/rust#2997][8] Tracing GC in rust
+* [Mechanical Sympathy][9] Martin Thompson, Single Writer Principle
 
 [1]: http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
 [2]: http://www.cs.virginia.edu/~cs415/reading/bacon-garbage.pdf
@@ -275,3 +276,4 @@ prior art for most garbage collection methods at this point.
 [6]: https://github.com/rust-lang/rust/pull/11399
 [7]: https://github.com/rust-lang/rfcs/issues/415
 [8]: https://github.com/rust-lang/rust/issues/2997
+[9]: http://mechanical-sympathy.blogspot.co.uk/2011/09/single-writer-principle.html
