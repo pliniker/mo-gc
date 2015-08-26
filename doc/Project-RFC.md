@@ -82,7 +82,7 @@ adjustment data have been written. This count should be written to using
 [release](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html) ordering
 while the GC thread should read the count using acquire ordering.
 
-My suggestion is that the buffer size should equal the page size, though
+My guess is that the buffer size should equal the page size, though
 benchmarking will permit discovery of an optimum size.
 
 Finally, it should be noted that the root smart-pointers shouldn't necessarily
@@ -147,7 +147,7 @@ object is marked in the heap trie.
 Then the heap trie is traversed and every unmarked entry is `drop()`ped and
 the live objects unmarked.
 
-### Immutable Data Structures
+## Immutable Data Structures
 
 To prevent data races between the application threads and the GC thread, all
 GC-managed data structures that contain pointers to other GC-managed objects
@@ -169,14 +169,14 @@ Applying a compile-time distinction between these may be possible using the
 type system. Indeed, presenting a safe API is one of the challenges in
 implementing this.
 
-### Generational Optimization
+## Generational Optimization
 
 Since non-atomic objects must be immutable, a consequence is that there can
 never be references from the old generation into a newer generation. This
 makes it a simple extension to apply mark and sweep on a frequent basis to
 newer objects while tracing the whole heap only infrequently.
 
-### Parallel Collection
+## Parallel Collection
 
 The tries used in the GC should be amenable to parallelizing tracing which
 may be particularly beneficial in conjunction with tracing the whole heap.
@@ -186,21 +186,24 @@ may be particularly beneficial in conjunction with tracing the whole heap.
 Benchmarking should be primarily done in a single threaded context, where the
 overhead of the GC will be measurable against the application code.
 
-Comparisons should be made against purely using Rust's static memory
-management.
+As a base comparison, a non-GC purely compile-time memory managed set of
+benchmarks should be compared against.
 
 # Tradeoffs
 
-Overall throughput will be lower than mark and sweep because of the journal
-overhead. This would show most measureably on a single processor system. On
-a multiprocessor system, the GC thread will interfere less with the
-application threads CPU time.
+How throughput compares to other GC algorithms is left to
+readers more experienced in the field to say. My guess is that with the overhead
+of the journal while doing mostly new-generation collections that this
+algorithm should be competitive.
 
-Nested GC-managed pointer structures must be immutable in those relationships,
-the added cost on the application threads is the requirement for persistent
-data structures. The main downside of this is the extra allocations and
-garbage generated. In some circumstances there could be enormous amounts of
-garbage generated, raising the overall overhead of using the GC.
+Non-atomic objects must be immutable, adding the cost associated with persistent
+data structures: the garbage generated. In some circumstances there could be
+enormous amounts of garbage generated, raising the overall overhead of using the
+GC to where the GC thread affects throughput.
+
+Jemalloc is said to give low fragmentation rates, but a copying collector
+would improve on it. Implementing a copying collector in this context may
+be more complex than it is worth.
 
 At least this one language/compiler safety issue remains: referencing
 GC-managed pointers in a `drop()` is currently considered safe as the compiler
@@ -216,6 +219,9 @@ the programmer - any Rust libraries should work with it, including low-level
 libraries such as [coroutine-rs](https://github.com/rustcc/coroutine-rs) and
 by extension [mioco](https://github.com/dpc/mioco).
 
+This GC will never interfere with any code that uses only the native Rust
+memory management.
+
 # Improvements
 
 ## Compiler Plugin
@@ -229,11 +235,11 @@ planned [tracing hooks][5].
 
 ## Copying Collector
 
-Any form of copying or moving collector would require a custom allocator and a
-read barrier of some form. The barrier could be implemented on the root
-smart pointers with the added expense of the application threads having to check
-whether the pointer must be updated on every dereference. There are pitfalls
-here though, and it may be necessary to use the future tracing hooks to
+Any form of copying or moving collector would require a custom allocator and
+probably a read barrier of some form. The barrier could be implemented on the
+root smart pointers with the added expense of the application threads having to
+check whether the pointer must be updated on every dereference. There are
+pitfalls here though, and it may be necessary to use the future tracing hooks to
 discover all roots to avoid bad things happening.
 
 # Patent Issues

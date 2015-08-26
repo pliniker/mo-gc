@@ -1,6 +1,6 @@
 # A pauseless concurrent garbage collector in Rust
 
-### Abstract
+### Summary
 
 Application threads maintain precise-rooted GC-managed pointers through smart
 pointers on the stack that write reference-count increments and decrements to a
