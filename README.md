@@ -12,9 +12,13 @@ reference count reaches zero, the GC thread moves the pointer to a heap cache
 data structure that is used by a tracing collector.
 
 Because the GC thread runs concurrently with the application threads without
-explicitly stopping them to maintain synchronization, all GC-managed data
-structures that reference other GC-managed objects must be transactional
-in their updates and persistent.
+stopping them to synchronize with them, all GC-managed data
+structures that refer to other GC-managed objects must provide a safe
+concurrent trace function.
+
+Data structures' trace functions can implement any transactional 
+mechanism that provides the GC an immutable snapshot of the data structure's 
+nested pointers for the duration of the trace function call.
 
 [Technical RFC](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
 and [discussion](https://github.com/pliniker/mo-gc/issues/1)
@@ -28,38 +32,51 @@ and [discussion](https://github.com/pliniker/mo-gc/issues/1)
 But:
 
 * throughput overhead on application threads is the use of the journal and
-the need for persistent data structures
-* potentially a lot of garbage is created
+the need for transactional data structures
+* potentially a lot of garbage can be created
+* currently Rust doesn't have a way to specify destructors as potentially
+being unsafe, which they are in a GC managed environment when they
+attempt to dereference already freed objects
 
 ### Why
 
-Many languages are hosted in the inherently unsafe languages C and/or C++,
-from Python to GHC.
+Many languages and runtimes are hosted in the inherently unsafe languages
+C and/or C++, from Python to GHC.
 
 My interest in this project is in building a foundation, written in Rust, for
-interpreted languages on top of Rust. Since Rust is a modern
+language runtimes on top of Rust. Since Rust is a modern
 language for expressing low-level interactions with hardware, it is an
 ideal alternative to C/C++ while providing the opportunity to avoid classes
 of bugs common to C/C++ by default.
 
 With the brilliant, notable exception of Rust, a garbage collector is an
-essential luxury for most styles of programming. How memory is managed in a
-language can be an asset or a liability that becomes so intertwined with
-the language semantics itself that it can be a feat to modernize years later.
+essential luxury for most styles of programming. But how memory is managed in 
+a language can be an asset or a liability that becomes so intertwined with
+the language semantics itself that it can even become impossible to modernize
+years later.
 
 With that in mind, this GC is designed from the ground up to be concurrent
 and never stop the world. The caveat is that data structures
-need to be designed for lock-free, concurrent reads and writes. In this world,
+need to be designed for concurrent reads and writes. In this world,
 the GC is just another thread, reading data structures and freeing any that
 are no longer live.
 
 That seems a reasonable tradeoff in a time when scaling out by adding
 processors rather than up through increased clock speed is now the status quo.
 
+### What this is not
+
 This is not particularly intended to be a general purpose GC, providing
-a near plug-and-play replacement for `Rc<T>`. For that, I recommend looking
-at [rust-gc](https://github.com/manishearth/rust-gc) or
+a near drop-in replacement for `Rc<T>`, though it may be possible.
+For that, I recommend looking at 
+[rust-gc](https://github.com/manishearth/rust-gc) or
 [bacon-rajan-cc](https://github.com/fitzgen/bacon-rajan-cc).
+
+This is also not primarily intended to be an ergonomic, native GC for all 
+concurrent data structures in Rust. For that, I recommend a first look at 
+[crossbeam](https://github.com/aturon/crossbeam/).
+
+Finally, this is not a proposal to include such a library into Rust `std`.
 
 ### About this Project
 
