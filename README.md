@@ -42,9 +42,9 @@ language for expressing low-level interactions with hardware, it is an
 ideal alternative to C/C++ while providing the opportunity to avoid classes
 of bugs common to C/C++ by default.
 
-A garbage collector is an essential
-luxury for most styles of programming, in fact, how memory is managed in an
-interpreter can be an asset or a liability that becomes so intertwined with
+With the brilliant, notable exception of Rust, A garbage collector is an
+essential luxury for most styles of programming. How memory is managed in a
+language can be an asset or a liability that becomes so intertwined with
 the language semantics itself that it can be a feat to modernize years later.
 
 With that in mind, this GC is designed from the ground up to be concurrent
@@ -53,7 +53,7 @@ need to be designed for lock-free, concurrent reads and writes. In this world,
 the GC is just another thread, reading data structures and freeing any that
 are no longer live.
 
-Those seem reasonable tradeoffs in a time when scaling out by adding
+That seems a reasonable tradeoff in a time when scaling out by adding
 processors rather than up through increased clock speed is now the status quo.
 
 This is not particularly intended to be a general purpose GC, providing
