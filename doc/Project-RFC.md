@@ -14,34 +14,53 @@ reference count reaches zero, the GC thread moves the pointer to a heap cache
 data structure that is used by a tracing collector.
 
 Because the GC thread runs concurrently with the application threads without
-explicitly stopping them to maintain synchronization, all GC-managed data
-structures that reference other GC-managed objects must be transactional
-in their updates and persistent.
+stopping them to synchronize with them, all GC-managed data
+structures that refer to other GC-managed objects must provide a safe
+concurrent trace function.
 
-# Why?
+Data structures' trace functions can implement any transactional 
+mechanism that provides the GC a snapshot of the data structure's 
+nested pointers for the duration of the trace function call.
 
-Rust's static memory management model is ideal, or sufficent, for most purposes.
-Any data structure can be created, with varying degree of unsafe code or
-`std::rc::Rc` with weak references.
+# Why
 
-However, some specific applications may require a GC runtime, such as hosting a
-virtual machine or [interpreter][3] on Rust. This project describes a GC that
-is not tied to any particular runtime.
+Many languages and runtimes are hosted in the inherently unsafe languages
+C and/or C++, from Python to GHC.
 
-There may be other use cases, such as managing cyclic graphs, where using a
-GC in a specific instance may well be simpler than managing unsafe code
-and lifetimes directly in Rust, if the runtime overhead is acceptable.
+My interest in this project is in building a foundation, written in Rust, for
+language runtimes on top of Rust. Since Rust is a modern
+language for expressing low-level interactions with hardware, it is an
+ideal alternative to C/C++ while providing the opportunity to avoid classes
+of bugs common to C/C++ by default.
 
-This [hybrid][2] reference-counting/tracing garbage collector is aimed at
-avoiding pause times and providing an API with the type of usability of
-[Box](https://doc.rust-lang.org/std/boxed/struct.Box.html) on the
-root smart pointers.
+With the brilliant, notable exception of Rust, a garbage collector is an
+essential luxury for most styles of programming. But how memory is managed in 
+a language can be an asset or a liability that becomes so intertwined with
+the language semantics itself that it can even become impossible to modernize
+years later.
 
-Adding a native garbage collector runtime to Rust appears to be (justifiably
-so) a low priority for the core team.
+With that in mind, this GC is designed from the ground up to be concurrent
+and never stop the world. The caveat is that data structures
+need to be designed for concurrent reads and writes. In this world,
+the GC is just another thread, reading data structures and freeing any that
+are no longer live.
 
-Finally, this implementation doesn't require a compiler-aware
-runtime: it does not depend on doing stop-the-world and stack scanning.
+That seems a reasonable tradeoff in a time when scaling out by adding
+processors rather than up through increased clock speed is now the status quo.
+
+# What this is not
+
+This is not particularly intended to be a general purpose GC, providing
+a near drop-in replacement for `Rc<T>`, though it may be possible.
+For that, I recommend looking at 
+[rust-gc](https://github.com/manishearth/rust-gc) or
+[bacon-rajan-cc](https://github.com/fitzgen/bacon-rajan-cc).
+
+This is also not primarily intended to be an ergonomic, native GC for all 
+concurrent data structures in Rust. For that, I recommend a first look at 
+[crossbeam](https://github.com/aturon/crossbeam/).
+
+Finally, this is not a proposal to include such a library into Rust `std`.
 
 # Assumptions
 
@@ -77,18 +96,17 @@ When newly rooting a pointer to the stack, the current buffer must be accessed.
 One solution is to use Thread Local Storage so that each thread will be able
 to access its own buffer at any time. The overhead of looking up the TLS
 pointer is a couple of extra instructions in a release build to check that
-the buffer data has been initialized:
-
-    cmpq $1, %fs:offset
-    je .label
+the buffer data has been initialized
 
 A journal buffer maintains a count at offset 0 to indicate how many words of
 adjustment data have been written. This count should be written to using
 [release](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html) ordering
 while the GC thread should read the count using acquire ordering.
 
-My guess is that the buffer size should equal the page size, though
-benchmarking will permit discovery of an optimum size.
+This design should improve on typical reference counting implementations, where
+the count is maintained on the object being counted itself, through better
+cache locality: the application threads only need to write to a buffer
+that can simply be an array of contiguous memory.
 
 Finally, it should be noted that the root smart-pointers shouldn't necessarily
 be churning out reference count adjustments. This is Rust: prefer to borrow
@@ -140,7 +158,7 @@ Increment adjustments can be applied immediately, always.
 While more advanced or efficient algorithms might be applied here, this section
 will describe how a straightforward mark and sweep can be applied.
 
-As in [Manishearth/rust-gc][4], all types participating in GC must implement
+As in [rust-gc][4], all types participating in GC must implement
 a trait that allows that type to be traced. (This is an inconvenience that
 a compiler plugin may be able to alleviate for many cases.)
 
@@ -154,34 +172,42 @@ object is marked in the heap trie.
 Then the heap trie is traversed and every unmarked entry is `drop()`ped and
 the live objects unmarked.
 
-## Immutable Data Structures
+It is worth noting that by using a separate trie for the heap and root pointers
+that this GC scheme remains `fork()` memory friendly: the act of updating 
+reference counts and marking heap objects does not force a copy-on-write for 
+every touched page of memory.
+
+## Concurrent Data Structures
 
 To prevent data races between the application threads and the GC thread, all
 GC-managed data structures that contain pointers to other GC-managed objects
-must be immutable in those relationships. That is, a `GcRoot<Vec<i32>>` can
-contain mutable data but a `GcRoot<Vec<GcBox<i32>>>` must be immutable once
-the `Vec` has been placed under the GC's management.
+must be transactional in updates to those relationships. That is, a 
+`GcRoot<Vec<i32>>` can contain mutable data where the mutability follows 
+the Rust static analysis rules, but a `GcRoot<Vec<GcBox<i32>>>` must be
+reimplemented with a transactional runtime nature.
 
-To apply some sort of metaphor, there are atomic GC-managed objects and
-non-atomic GC-managed objects:
-
-* atomic: a GC-managed object that has zero references to other GC-managed
-objects, in other words, it is indivisible into further GC-managed objects.
-* non-atomic: a GC-managed data structure that is composed of other GC-managed
-objects, in other words, the trace() function must recurse into it.
-
-Atomic objects may be mutable, non-atomic objects must be immutable.
+The `Vec::trace()` method has to be able to provide a readonly
+snapshot of its contents to the GC thread and atomic updates to its 
+contents.
 
 Applying a compile-time distinction between these may be possible using the
 type system. Indeed, presenting a safe API is one of the challenges in
 implementing this.
 
+As the `trace()` method is part of the data structure itself, data structures
+should be free to implement any method of atomic update without the GC
+code or thread needing to be aware of transactions occurring.
+
+Fortunately, concurrent data structures are fairly widely researched and 
+in use by 2015.
+
 ## Generational Optimization
 
-Since non-atomic objects must be immutable, a consequence is that there can
-never be references from the old generation into a newer generation. This
-makes it a simple extension to apply mark and sweep on a frequent basis to
-newer objects while tracing the whole heap only infrequently.
+Since the application threads write a journal of all root pointers, all
+pointers that the application uses will be recorded. It may be possible 
+for the GC thread to use that fact to process batches of journal changes
+in a generational manner, rather than having to trace the entire heap
+on every iteration. This needs further investigation.
 
 ## Parallel Collection
 
@@ -203,19 +229,18 @@ readers more experienced in the field to say. My guess is that with the overhead
 of the journal while doing mostly new-generation collections that this
 algorithm should be competitive.
 
-Non-atomic objects must be immutable, adding the cost associated with persistent
-data structures: the garbage generated. In some circumstances there could be
-enormous amounts of garbage generated, raising the overall overhead of using the
-GC to where the GC thread affects throughput.
+Non-atomic objects must be transactional, adding the cost associated with 
+concurrent data structures: the garbage generated. In some circumstances there 
+could be enormous amounts of garbage generated, raising the overall overhead of 
+using the GC to where the GC thread affects throughput.
 
-Jemalloc is said to give low fragmentation rates, but a copying collector
-would improve on it. Implementing a copying collector in this context may
-be more complex than it is worth.
+Jemalloc is said to give low fragmentation rates compared to other malloc
+implementations, but fragmentation is likely nonetheless.
 
 At least this one language/compiler safety issue remains: referencing
-GC-managed pointers in a `drop()` is currently considered safe as the compiler
-has no awareness of the GC, but doing so is of course unsafe as the order of
-collection is non-deterministic leading to possible use-after-free in custom
+GC-managed pointers in a `drop()` is currently considered safe by the compiler
+as it has no awareness of the GC, but doing so is of course unsafe as the order 
+of collection is non-deterministic leading to possible use-after-free in custom
 `drop()` functions.
 
 # Rust Library Compatibility
@@ -234,7 +259,7 @@ memory management.
 ## Compiler Plugin
 
 It is possible to give the compiler some degree of awareness of GC requirements
-through custom plugins, as implemented in [Manishearth/rust-gc][4]. The same
+through custom plugins, as implemented in [rust-gc][4] and [servo][13]. The same
 may be applicable here.
 
 In the future, this implementation would surely benefit from aspects of the
@@ -243,11 +268,13 @@ planned [tracing hooks][5].
 ## Copying Collector
 
 Any form of copying or moving collector would require a custom allocator and
-probably a read barrier of some form. The barrier could be implemented on the
+probably a Baker-style read barrier. The barrier could be implemented on the
 root smart pointers with the added expense of the application threads having to
 check whether the pointer must be updated on every dereference. There are
-pitfalls here though, and it may be necessary to use the future tracing hooks to
-discover all roots to avoid bad things happening.
+pitfalls here though as the Rust compiler may optimize dereferences with
+pointers taking temporary but hard-to-discover root in CPU registers. It may 
+be necessary to use the future tracing hooks to discover all roots to avoid 
+Bad Things happening.
 
 # Patent Issues
 
@@ -270,6 +297,9 @@ prior art for most garbage collection methods at this point.
 * [rust-lang/rust#2997][8] Tracing GC in rust
 * [Mechanical Sympathy][9] Martin Thompson, Single Writer Principle
 * [michaelwoerister/rs-persistent-datastructures][10] Michael Woerister, HAMT in Rust
+* [crossbeam][11] Aaron Turon, Lock-freedom without garbage collection
+* [Shenandoah][12] Shenandoah, a low-pause GC for the JVM
+* [Servo][13] Servo blog, JavaScript: Servo’s only garbage collector
 
 [1]: http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
 [2]: http://www.cs.virginia.edu/~cs415/reading/bacon-garbage.pdf
@@ -281,3 +311,6 @@ prior art for most garbage collection methods at this point.
 [8]: https://github.com/rust-lang/rust/issues/2997
 [9]: http://mechanical-sympathy.blogspot.co.uk/2011/09/single-writer-principle.html
 [10]: https://github.com/michaelwoerister/rs-persistent-datastructures
+[11]: http://aturon.github.io/blog/2015/08/27/epoch/
+[12]: https://www.youtube.com/watch?v=QcwyKLlmXeY
+[13]: https://blog.mozilla.org/research/2014/08/26/javascript-servos-only-garbage-collector/
