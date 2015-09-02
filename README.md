@@ -2,7 +2,7 @@
 
 ### Summary
 
-Application threads maintain precise-rooted GC-managed pointers through smart
+Application threads maintain precise-rooted GC-managed objects through smart
 pointers on the stack that write reference-count increments and decrements to a
 journal.
 
@@ -12,12 +12,11 @@ reference count reaches zero, the GC thread moves the pointer to a heap cache
 data structure that is used by a tracing collector.
 
 Because the GC thread runs concurrently with the application threads without
-stopping them to synchronize with them, all GC-managed data
-structures that refer to other GC-managed objects must provide a safe
-concurrent trace function.
+stopping them to synchronize, all GC-managed data structures that refer to
+other GC-managed objects must provide a safe concurrent trace function.
 
-Data structures' trace functions can implement any transactional 
-mechanism that provides the GC an immutable snapshot of the data structure's 
+Data structures' trace functions can implement any transactional
+mechanism that provides the GC an immutable snapshot of the data structure's
 nested pointers for the duration of the trace function call.
 
 [Technical RFC](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
@@ -50,7 +49,7 @@ ideal alternative to C/C++ while providing the opportunity to avoid classes
 of bugs common to C/C++ by default.
 
 With the brilliant, notable exception of Rust, a garbage collector is an
-essential luxury for most styles of programming. But how memory is managed in 
+essential luxury for most styles of programming. But how memory is managed in
 a language can be an asset or a liability that becomes so intertwined with
 the language semantics itself that it can even become impossible to modernize
 years later.
@@ -68,15 +67,13 @@ processors rather than up through increased clock speed is now the status quo.
 
 This is not particularly intended to be a general purpose GC, providing
 a near drop-in replacement for `Rc<T>`, though it may be possible.
-For that, I recommend looking at 
+For that, I recommend looking at
 [rust-gc](https://github.com/manishearth/rust-gc) or
 [bacon-rajan-cc](https://github.com/fitzgen/bacon-rajan-cc).
 
-This is also not primarily intended to be an ergonomic, native GC for all 
-concurrent data structures in Rust. For that, I recommend a first look at 
+This is also not primarily intended to be an ergonomic, native GC for all
+concurrent data structures in Rust. For that, I recommend a first look at
 [crossbeam](https://github.com/aturon/crossbeam/).
-
-Finally, this is not a proposal to include such a library into Rust `std`.
 
 ### About this Project
 
