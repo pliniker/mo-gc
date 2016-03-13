@@ -1,4 +1,19 @@
 [package]
 name = "mo-gc"
+description = "MO, a pauseless, concurrent, generational, parallel mark-and-sweep garbage collector"
+keywords = ["gc", "garbage", "collector"]
+homepage = "https://github.com/pliniker/mo-gc"
+repository = "https://github.com/pliniker/mo-gc"
+documentation = "https://crates.fyi/crates/mo-gc"
 version = "0.1.0"
+license = "MIT/Apache-2.0"
 authors = ["Peter Liniker <peter.liniker@gmail.com>"]
+
+[dependencies]
+bitmaptrie = { git = "https://github.com/pliniker/bitmaptrie-rs" }
+scoped-pool = "0.1"
+num_cpus = "0.2"
+time = "0.1"
+
+[dev-dependencies]
+stopwatch = "0.0.6"

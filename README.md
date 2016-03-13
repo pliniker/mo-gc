@@ -1,85 +1,77 @@
-# A pauseless concurrent garbage collector in Rust
+# A pauseless, concurrent, generational, parallel mark-and-sweep  garbage collector in Rust
+
+This is a very experimental garbage collector primarily built to research
+the viability of a pauseless mechanism. May eat laundry etc etc.
 
 ### Summary
 
-Application threads maintain precise-rooted GC-managed objects through smart
-pointers on the stack that write reference-count increments and decrements to a
-journal.
+Mutator threads write stack-root reference count adjustments to a journal.
 
-The reference-count journal is read by a GC thread that
-maintains the actual reference count numbers in a cache of roots. When a
-reference count reaches zero, the GC thread moves the pointer to a heap cache
-data structure that is used by a tracing collector.
+The journal is read concurrently by a GC thread that maintains the actual
+reference count numbers in a roots map.
 
-Because the GC thread runs concurrently with the application threads without
-stopping them to synchronize, all GC-managed data structures that refer to
-other GC-managed objects must provide a safe concurrent trace function.
+Tracing is run in the GC thread from the root map, by making a `trace()`
+virtual function call to objects, which return the objects they reference.
+This `trace()` function must be thread-safe since it is called concurrently
+with the mutator.
 
-Data structures' trace functions can implement any transactional
+Data structures' `trace()` functions can implement any transactional
 mechanism that provides the GC an immutable snapshot of the data structure's
 nested pointers for the duration of the trace function call.
 
-[Technical RFC](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
-and [discussion](https://github.com/pliniker/mo-gc/issues/1)
+* [Original rough design RFC](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
+* [Some discussion](https://github.com/pliniker/mo-gc/issues/1) on the original RFC.
+* See the [Implementation Notes](https://github.com/pliniker/mo-gc/blob/master/doc/Implementation-Notes.md)
+  for a technical description of how the current implementation works.
+* See the [TODO](https://github.com/pliniker/mo-gc/blob/master/TODO.md)
+  for unresolved issues.
 
 ### Tradeoffs
 
-* no stop-the-world pauses whatsoever
-* multiprocessor friendly - GC runs in parallel with application threads
+* no stop-the-world pauses whatsoever, not even incremental pauses
+* multiprocessor friendly - GC runs in parallel with mutator threads
 * opt-in standalone library not tied to any VM or other runtime
 
 But:
 
-* throughput overhead on application threads is the use of the journal and
-the need for transactional data structures
-* potentially a lot of garbage can be created
+* throughput overhead on mutator threads is the use of the journal and
+  the need for transactional data structures
+* the root set read from the journal by the GC thread lags behind the
+  real time root set while tracing touches the real time pointer
+  references (see TODO for resulting issues)
 * currently Rust doesn't have a way to specify destructors as potentially
-being unsafe, which they are in a GC managed environment when they
-attempt to dereference already freed objects
+  being unsafe, which they are in a GC managed environment when they
+  attempt to dereference already freed objects
 
 ### Why
 
-Many languages and runtimes are hosted in the inherently unsafe languages
-C and/or C++, from Python to GHC.
-
 My interest in this project is in building a foundation, written in Rust, for
-language runtimes on top of Rust. Since Rust is a modern
-language for expressing low-level interactions with hardware, it is an
-ideal alternative to C/C++ while providing the opportunity to avoid classes
-of bugs common to C/C++ by default.
+a language runtime on top of Rust.
 
-With the brilliant, notable exception of Rust, a garbage collector is an
-essential luxury for most styles of programming. But how memory is managed in
-a language can be an asset or a liability that becomes so intertwined with
-the language semantics itself that it can even become impossible to modernize
-years later.
+Rust itself is not in need of a garbage collector and if it was, this might
+not be it since this is experimental and has outstanding issues.
 
-With that in mind, this GC is designed from the ground up to be concurrent
-and never stop the world. The caveat is that data structures
-need to be designed for concurrent reads and writes. In this world,
-the GC is just another thread, reading data structures and freeing any that
-are no longer live.
+It cannot generally provide a drop-in replacement for `Rc<T>`, or `Arc<T>`
+though it may be possible in some cases.
 
-That seems a reasonable tradeoff in a time when scaling out by adding
-processors rather than up through increased clock speed is now the status quo.
-
-### What this is not
-
-This is not particularly intended to be a general purpose GC, providing
-a near drop-in replacement for `Rc<T>`, though it may be possible.
-For that, I recommend looking at
+For more general purpose, ergonomic collectors, see
 [rust-gc](https://github.com/manishearth/rust-gc) or
 [bacon-rajan-cc](https://github.com/fitzgen/bacon-rajan-cc).
 
-This is also not primarily intended to be an ergonomic, native GC for all
-concurrent data structures in Rust. For that, I recommend a first look at
-[crossbeam](https://github.com/aturon/crossbeam/).
+This is also not primarily intended to be an ergonomic GC for
+concurrent data structures in Rust. See
+[crossbeam](https://github.com/aturon/crossbeam/) instead.
 
 ### About this Project
 
 * Copyright &copy; 2015 Peter Liniker <peter.liniker@gmail.com>
-* Licensed under the MPLv2
+* Licensed under dual MIT/Apache-2.0
 
-Since I picture this algorithm as a robot chasing frantically
-after all the garbage, never quite catching up, it is named for
-[M-O](http://pixar.wikia.com/wiki/M-O), the cleaning robot from [WALL-E](https://www.youtube.com/watch?v=mfLHhnDzPcc).
+Named after [M-O](http://pixar.wikia.com/wiki/M-O).
+
+### Contributing
+
+Contributions and collaboration are highly welcome. I am discoverable on
+IRC in `#rust` as `pliniker`.
+
+Rust [Code of Conduct](https://www.rust-lang.org/conduct.html) applies.
