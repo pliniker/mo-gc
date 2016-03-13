@@ -3,6 +3,8 @@
 This is a very experimental garbage collector primarily built to research
 the viability of a pauseless mechanism. May eat laundry etc etc.
 
+[![Build Status](https://travis-ci.org/pliniker/mo-gc.svg?branch=master)](https://travis-ci.org/pliniker/mo-gc)
+
 ### Summary
 
 Mutator threads write stack-root reference count adjustments to a journal.
