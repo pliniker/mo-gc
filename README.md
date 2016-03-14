@@ -1,4 +1,4 @@
-# A pauseless, concurrent, generational, parallel mark-and-sweep  garbage collector in Rust
+## A pauseless, concurrent, generational, parallel mark-and-sweep  garbage collector in Rust
 
 This is a very experimental garbage collector primarily built to research
 the viability of a pauseless mechanism. May eat laundry etc etc.
@@ -64,6 +64,15 @@ This is also not primarily intended to be an ergonomic GC for
 concurrent data structures in Rust. See
 [crossbeam](https://github.com/aturon/crossbeam/) instead.
 
+### Using
+
+Add the following to `Cargo.toml`:
+
+```
+[dependencies]
+mo = { git = "https://github.com/pliniker/mo-gc/" }
+```
+
 ### About this Project
 
 * Copyright &copy; 2015 Peter Liniker <peter.liniker@gmail.com>
@@ -73,7 +82,4 @@ Named after [M-O](http://pixar.wikia.com/wiki/M-O).
 
 ### Contributing
 
-Contributions and collaboration are highly welcome. I am discoverable on
-IRC in `#rust` as `pliniker`.
-
-Rust [Code of Conduct](https://www.rust-lang.org/conduct.html) applies.
+Collaboration is welcome. Email me at the address above or find me on `#rust` as `pliniker`.

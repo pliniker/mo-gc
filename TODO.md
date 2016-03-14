@@ -10,6 +10,8 @@
 
 # Issues
 
+## Race condition
+
 There is currently a race condition where a pointer is read from the heap, rooted and then that
 pointer value on the heap is overwritten during the mark/sweep phase of collection. The
 rooting should ensure that the referenced object is marked, but the journal is not being
@@ -27,6 +29,10 @@ The sequence of events causing the race condition is:
  * GC traces heap, marking new object B but not previously referenced object A
  * GC sweeps, dropping A even though A was rooted
 
+The benefit of fixing this issue is that this GC design becomes general purpose.
+
+### Additional write barrier
+
 This race condition might be avoided by an additional synchronous write barrier: if a pointer A
 on the heap is going to be replaced by pointer B, the object A might be marked as "pinned"
 to prevent the sweep phase from dropping it. The sweep phase would unpin the object, after
@@ -39,17 +45,23 @@ on the sweep phase. It would also make programs that use this GC less fork-frien
 pinning objects would incur copy-on-write costs for memory pages that might otherwise remain
 read-only.
 
-Question: just how atomic does the pinning operation need to be? It only needs to take effect
-during the mark phase but the pin flag needs to be readable by the sweep phase.
-
-The benefit of applying this mechanism is that this GC design becomes general purpose.
+Question: just how atomic would the pinning operation need to be? It only needs to take effect
+during the mark phase but the pin flag would need to be readable by the sweep phase.
 
 Experimentation will determine if this mechanism is worth the cost. There may be alternative
 implementation options that are more efficient: perhaps using a shared data structure to
 write pinned object pointers to that is consumed by a phase between mark and sweep that
 sets the marked flag on those objects?
 
-### Performance Bottlenecks
+### Use the journal
+
+The journal contains the rooting information needed to avoid this problem. Another possible
+solution may be to read the journal in the mark phase, _after_ marking any new roots, before
+moving on to the sweep phase.
+
+This needs further thought.
+
+## Performance Bottlenecks
 
 `Trie::set()` is the bottleneck in `YoungHeap::read_journals()`. This is a single-threaded
 function and consumes most of the GC linear time. It is the single greatest throughput limiter.

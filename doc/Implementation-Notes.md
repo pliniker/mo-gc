@@ -18,7 +18,7 @@ a pointer to an object and the `Trace` trait virtual table. The virtual table po
 required to provide the `drop()` and `Trace::trace()` methods, as the GC thread does not
 know concrete types at runtime.
 
-Because heap allocations are word aligned, pointer's two least significant bits can be used
+Because heap allocations are word aligned, a pointer's two least significant bits can be used
 as bit flags.
 
 The object address has four possible values in it's LSBs:
@@ -62,7 +62,7 @@ generation objects. Other entries in the map not marked as `NEW` are stack roots
 
 Thus the young generation heap map combines pure stack-root references and new object references.
 
-A typical generational GC keeps a data structure such a as a "card table" to discover pointers from
+A typical generational GC keeps a data structure such a as a card table to discover pointers from
 the mature object heap into the young generation heap. Write barriers are required to update the
 card table when mature objects are written to. In our case, the non-`NEW` stack-root
 references act as the set of mature objects that may have references to young generation objects.
@@ -77,10 +77,10 @@ marking; during the sweep phase, the heap map is sharded across multiple threads
 
 ### Advantages
 
-This combined roots and new-objects map makes for a very simple, parallelizable implementation.
-The trie can be sharded into sub-tries and each sub-trie can be processed independently and
-mutated independently of the others while remaining thread safe without requiring locks or
-atomic access.
+This combined roots and new-objects map makes for a straightforwardly parallelizable mark and 
+sweep implementation. The trie can be sharded into sub-tries and each sub-trie can be processed 
+independently and mutated independently of the others while remaining thread safe without 
+requiring locks or atomic access.
 
 ### Disadvantages
 
@@ -89,11 +89,14 @@ a single-threaded affair, impacting GC throughput.
 
 On high rates of new object allocation, the GC thread currently cannot keep up with the
 mutators rate of writing to the journal. The cause of this is not the journal itself: reading
-and writing the journal can be done very fast. The GC thread reads the journal and updates a
-map of stack roots. Inserting and updating the map causes the GC thread to process the journal
-at half the rate at which a single mutator thread can allocate new objects.
+and writing the journal can be done very fast. However, inserting and updating the heap map 
+causes the GC thread to process the journal at half the rate at which a single mutator thread 
+can allocate new objects.
 
-If trie insertion can be parallelized, the GC throughput will hugely improve.
+If journal processing (trie insertion) can be parallelized, the GC throughput will hugely improve.
+
+One part-way step may be to parallelize reference count updates while still processing new
+objects in sequence.
 
 ## The mature object heap
 
@@ -101,4 +104,6 @@ This heap map is similar to the young generation heap but does not consider refe
 or new objects. Marking and sweeping is parallelized similarly.
 
 A mature heap collection is triggered when the young generation heap reaches a threshold count of
-`NEW` objects that it is managing.
+`NEW` objects that it is managing. `NEW` object data is copied to the mature heap trie and
+the original entries in the young generation are unmarked as `NEW`. They become plain stack
+root entries.

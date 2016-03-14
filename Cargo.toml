@@ -1,7 +1,7 @@
 [package]
 name = "mo-gc"
 description = "MO, a pauseless, concurrent, generational, parallel mark-and-sweep garbage collector"
-keywords = ["gc", "garbage", "collector"]
+keywords = ["mo", "gc", "garbage", "collector"]
 homepage = "https://github.com/pliniker/mo-gc"
 repository = "https://github.com/pliniker/mo-gc"
 documentation = "https://crates.fyi/crates/mo-gc"
