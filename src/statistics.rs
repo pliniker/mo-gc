@@ -6,7 +6,7 @@ use std::cmp::max;
 use time::{get_time, Timespec};
 
 
-/// Type that describes how the GcThread should collect counters and statistics on it's performance.
+/// Type that provides counters for the GC to gain some measure of performance.
 pub trait StatsLogger: Send {
     /// mark start of time
     fn mark_start_time(&mut self);

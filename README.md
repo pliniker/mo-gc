@@ -1,9 +1,13 @@
-## A pauseless, concurrent, generational, parallel mark-and-sweep  garbage collector in Rust
+## A pauseless, concurrent, generational, parallel mark-and-sweep garbage collector in Rust
 
 This is a very experimental garbage collector primarily built to research
 the viability of a pauseless mechanism. May eat laundry etc etc.
 
-[![Build Status](https://travis-ci.org/pliniker/mo-gc.svg?branch=master)](https://travis-ci.org/pliniker/mo-gc)
+Much has not yet been fully thought through, especially the how to
+effectively build data structures while avoiding concurrency issues.
+
+* [![Build Status](https://travis-ci.org/pliniker/mo-gc.svg?branch=master)](https://travis-ci.org/pliniker/mo-gc)
+* [Documentation](https://pliniker.github.io/mo-gc/), but mostly see the examples.
 
 ### Summary
 
@@ -21,12 +25,12 @@ Data structures' `trace()` functions can implement any transactional
 mechanism that provides the GC an immutable snapshot of the data structure's
 nested pointers for the duration of the trace function call.
 
-* [Original rough design RFC](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
+* [Original draft design outline](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
 * [Some discussion](https://github.com/pliniker/mo-gc/issues/1) on the original RFC.
 * See the [Implementation Notes](https://github.com/pliniker/mo-gc/blob/master/doc/Implementation-Notes.md)
   for a technical description of how the current implementation works.
 * See the [TODO](https://github.com/pliniker/mo-gc/blob/master/TODO.md)
-  for unresolved issues.
+  for unresolved issues and areas for improvement.
 
 ### Tradeoffs
 
@@ -36,11 +40,10 @@ nested pointers for the duration of the trace function call.
 
 But:
 
+* unproven design and implementation
+* possibly undiscovered concurrency issues
 * throughput overhead on mutator threads is the use of the journal and
   the need for transactional data structures
-* the root set read from the journal by the GC thread lags behind the
-  real time root set while tracing touches the real time pointer
-  references (see TODO for resulting issues)
 * currently Rust doesn't have a way to specify destructors as potentially
   being unsafe, which they are in a GC managed environment when they
   attempt to dereference already freed objects
@@ -48,21 +51,16 @@ But:
 ### Why
 
 My interest in this project is in building a foundation, written in Rust, for
-a language runtime on top of Rust.
+a language runtime on top of Rust that doesn't place typical restrictions
+on the runtime.
 
-Rust itself is not in need of a garbage collector and if it was, this might
-not be it since this is experimental and has outstanding issues.
-
-It cannot generally provide a drop-in replacement for `Rc<T>`, or `Arc<T>`
+It is not likely to provide a drop-in replacement for `Rc<T>`, or `Arc<T>`
 though it may be possible in some cases.
 
-For more general purpose, ergonomic collectors, see
-[rust-gc](https://github.com/manishearth/rust-gc) or
-[bacon-rajan-cc](https://github.com/fitzgen/bacon-rajan-cc).
-
-This is also not primarily intended to be an ergonomic GC for
-concurrent data structures in Rust. See
-[crossbeam](https://github.com/aturon/crossbeam/) instead.
+See also:
+* [rust-gc](https://github.com/manishearth/rust-gc)
+* [crossbeam](https://github.com/aturon/crossbeam/)
+* [bacon-rajan-cc](https://github.com/fitzgen/bacon-rajan-cc)
 
 ### Using
 
@@ -70,16 +68,16 @@ Add the following to `Cargo.toml`:
 
 ```
 [dependencies]
-mo = { git = "https://github.com/pliniker/mo-gc/" }
+mo-gc = { git = "https://github.com/pliniker/mo-gc/" }
 ```
 
 ### About this Project
 
 * Copyright &copy; 2015 Peter Liniker <peter.liniker@gmail.com>
 * Licensed under dual MIT/Apache-2.0
-
-Named after [M-O](http://pixar.wikia.com/wiki/M-O).
+* Named after [M-O](http://pixar.wikia.com/wiki/M-O).
 
 ### Contributing
 
-Collaboration is welcome. Email me at the address above or find me on `#rust` as `pliniker`.
+Collaboration is welcome! See the TODO file for a list of things that need to be thought through,
+open an issue, email me with your questions and ideas or find me on `#rust` as `pliniker`.

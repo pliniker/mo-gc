@@ -1,4 +1,4 @@
-//! Garbage Collection thread
+//! Garbage collection thread
 
 
 use std::any::Any;
@@ -75,7 +75,8 @@ impl<S: StatsLogger + 'static> GcThread<S> {
         AppThread::spawn_from_gc(self.tx_chan.clone(), f)
     }
 
-    /// Wait for the GC thread to finish.
+    /// Wait for the GC thread to finish. On success, returns the object that implements
+    /// `StatsLogger` for the calling thread to examine.
     pub fn join(self) -> Result<S, Box<Any + Send + 'static>> {
         self.handle.join()
     }

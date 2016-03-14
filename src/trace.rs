@@ -13,8 +13,10 @@ pub unsafe trait Trace {
     }
 
     /// If the type can contain GC managed pointers, this must visit each pointer.
-    /// This function must be thread-safe! It must read a snapshot of the data structure it is
-    /// implemented for.
+    ///
+    /// This function must be thread-safe!
+    ///
+    /// It must read a snapshot of the data structure it is implemented for.
     unsafe fn trace(&self, _stack: &mut TraceStack) {}
 }
 

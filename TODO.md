@@ -63,16 +63,24 @@ This needs further thought.
 
 ## Performance Bottlenecks
 
+### Journal processing
+
 `Trie::set()` is the bottleneck in `YoungHeap::read_journals()`. This is a single-threaded
 function and consumes most of the GC linear time. It is the single greatest throughput limiter.
 If insertion into `bitmaptrie::Trie` could be parallelized, throughput would improve.
+
+One option is to process each mutator journal on a separate thread but defer new-object
+insertion to a single thread. This way some parallelism is gained for processing reference
+count increments. This is still not optimal though.
+
+### The Allocator
 
 Building on the generic allocator: jemalloc maintains a radix trie for allocation so there
 are two tries, increasing CPU and memory requirements. A custom allocator would
 solve this problem, but would introduce the problem of writing a scalable, fragmentation-
 minimizing allocator.
 
-### Collection Scheduling
+## Collection Scheduling
 
 This is currently very simple and has not been tuned at all.
 See `gcthread::gc_thread()` and `constants::*` for tuning.

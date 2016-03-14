@@ -1,3 +1,4 @@
+//! Types for the mutator to use to build data structures
 
 
 use std::cell::Cell;
@@ -30,7 +31,7 @@ pub struct GcBox<T: Trace> {
 /// Root smart pointer, sends reference count changes to the journal.
 ///
 /// Whenever a reference to an object on the heap must be retained on the stack, this type must be
-/// used. It's use will ensure that the object will be counted as a root.
+/// used. It's use will ensure that the object will be seen as a root.
 pub struct GcRoot<T: Trace> {
     ptr: *mut GcBox<T>,
 }
@@ -39,6 +40,10 @@ pub struct GcRoot<T: Trace> {
 /// Non-atomic pointer type. This type is `!Sync` and thus is useful for presenting a Rust-ish
 /// API to a data structure where aliasing and mutability must follow the standard rules: there
 /// can be only one mutator.
+///
+/// *Important note:* even though this type is `!Sync`, any data structures that are composed of
+/// `Gc` pointers must still be designed with the awareness that the GC thread will call `trace()`
+/// at any point and so, must still be thread safe!
 ///
 /// This is not a root pointer type. It should be used inside data structures to reference other
 /// GC-managed objects.

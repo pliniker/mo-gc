@@ -21,8 +21,18 @@ use statistics::StatsLogger;
 use trace::Trace;
 
 
-/// Type that composes all the things we need to run garbage collection. The actual thread
-/// holds an instance of this type.
+/// Type that composes all the things we need to run garbage collection on young generation
+/// objects.
+///
+/// The roots trie maps object addresses to their reference counts, vtables and `NEW` object
+/// flags.
+///
+/// During tracing, positive reference count objects and non-`NEW` objects are considered
+/// possible roots and only `NEW` objects are considered for marking and sweeping. Entries
+/// can be both roots and `NEW`.
+///
+/// Collection is run in a thread pool across all CPUs by default by sharding the root trie
+/// across threads.
 pub struct YoungHeap<S: StatsLogger, T: CollectOps + Send> {
     /// Size of the thread pool
     num_threads: usize,
@@ -45,6 +55,7 @@ pub struct YoungHeap<S: StatsLogger, T: CollectOps + Send> {
 
 
 impl<S: StatsLogger, T: CollectOps + Send> YoungHeap<S, T> {
+    /// Create a new young generation heap and roots reference count tracker
     pub fn new(num_threads: usize, mature: T, logger: S) -> YoungHeap<S, T> {
         YoungHeap {
             num_threads: num_threads,
@@ -66,13 +77,13 @@ impl<S: StatsLogger, T: CollectOps + Send> YoungHeap<S, T> {
         self.journals.len()
     }
 
-    /// Read all journals for a number of tries, updating the roots and keeping a reference count
-    /// increment for each, and putting decrements into the deferred buffer.
+    /// Read all journals for a number of iterations, updating the roots and keeping a reference
+    /// count increment for each, and putting decrements into the deferred buffer.
     ///
     /// This function is single-threaded and is the biggest GC throughput bottleneck. Setting a
     /// value in the trie is slow compared to allocation and writing/reading the journal.
     ///
-    /// Consumes 90% of linear GC time. TODO: somehow parallelize `Trie::set()`.
+    /// Easily consumes 80% of linear GC time. TODO: parallelize this function.
     ///
     /// Returns the number of journal entries read.
     pub fn read_journals(&mut self) -> usize {
@@ -137,7 +148,7 @@ impl<S: StatsLogger, T: CollectOps + Send> YoungHeap<S, T> {
         young_size
     }
 
-    /// Do a major collection on the whole heap
+    /// Do a major collection, moving `NEW` objects to the mature heap and tracing the mature heap
     pub fn major_collection(&mut self, pool: &mut Pool) {
         // first move any new-objects into the mature heap by copying and unsetting the new-object
         // flag in the roots
@@ -306,27 +317,6 @@ impl<S: StatsLogger, T: CollectOps + Send> YoungHeap<S, T> {
         }
 
         self.deferred.clear();
-    }
-
-    /// Inspect the contents of the heap, printing info to stdout
-    pub fn inspect(&self) {
-        let mut total_counter = 0;
-        let mut new_counter = 0;
-        let mut root_counter = 0;
-
-        for (_, meta) in self.roots.iter() {
-            total_counter += 1;
-
-            if meta.is_new() {
-                new_counter += 1;
-            }
-
-            if !meta.unsync_is_unrooted() {
-                root_counter += 1;
-            }
-        }
-
-        println!("young: total={}, roots={}, new={}", total_counter, root_counter, new_counter);
     }
 
     /// Return a reference to the logger

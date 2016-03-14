@@ -1,7 +1,9 @@
 //! Numerous constants used as parameters to GC behavior
+//!
+//! The journal and GC parameters of these should become runtime rather than compile time.
 
 
-// Journal parameters
+// Journal and GC parameters
 pub const JOURNAL_BUFFER_SIZE: usize = 32768;
 pub const BUFFER_RUN: usize = 1024;
 pub const JOURNAL_RUN: usize = 32;

@@ -4,7 +4,7 @@
 
 # Summary
 
-Application threads maintain precise-rooted GC-managed objects through smart
+Mutator threads maintain precise-rooted GC-managed objects through smart
 pointers on the stack that write reference-count increments and decrements to a
 journal.
 
@@ -13,8 +13,8 @@ maintains the actual reference count numbers in a cache of roots. When a
 reference count reaches zero, the GC thread moves the pointer to a heap cache
 data structure that is used by a tracing collector.
 
-Because the GC thread runs concurrently with the application threads without
-stopping them to synchronize, all GC-managed data structures that refer to
+Because the GC thread runs concurrently with the mutator threads without
+stopping them to scan stacks or trace, all GC-managed data structures that refer to
 other GC-managed objects must provide a safe concurrent trace function.
 
 Data structures' trace functions can implement any transactional
@@ -67,20 +67,20 @@ the performance characteristics of jemalloc should be assumed.
 
 # Journal Implementation
 
-## Application Threads
+## Mutator Threads
 
-The purpose of using a journal is to minimize the burden on the application
+The purpose of using a journal is to minimize the burden on the mutator
 threads as much as possible, pushing as much workload as possible over to the
 GC thread, while avoiding pauses if that is possible.
 
 In the most straightforward implementation, the journal can simply be a
-MPSC channel shared between application threads and sending
+MPSC channel shared between mutator threads and sending
 reference count adjustments to the GC thread, that is, +1 and -1 for pointer
 clone and drop respectively.
 
-Performance for multiple application threads writing to an MPSC, with each
+Performance for multiple mutator threads writing to an MPSC, with each
 write causing an allocation, can be improved on based on the
-[single writer principle][9] by 1) giving each application thread its own
+[single writer principle][9] by 1) giving each mutator thread its own
 channel and 2) buffering journal entries and passing a reference to the buffer
 through the channel.
 
@@ -91,7 +91,7 @@ A typical problem of reference counted objects is locality: every reference
 count update requires a write to the object itself, making very inefficient
 spatial memory access. The journal, being a series of buffers, each
 of which is a contiguous block of memory, should give an efficiency gain
-for the application threads.
+for the mutator threads.
 
 It should be noted that the root smart-pointers shouldn't necessarily
 be churning out reference count adjustments. This is Rust: prefer to borrow
@@ -146,7 +146,7 @@ possible use-after-free and possibly a double-free.
 Here, learning from [Bacon2003][1], decrement adjustments should be
 buffered by an amount of time sufficient to clear all increment adjustments
 that occurred prior to those decrements. An appropriate amount of time might
-be provided by scanning the application threads'
+be provided by scanning the mutator threads'
 buffers one further iteration before applying the buffered decrements.
 
 Increment adjustments can be applied immediately, always.
@@ -177,7 +177,7 @@ page copy-on-write for every counted and marked object location.
 
 # Concurrent Data Structures
 
-To prevent data races between the application threads and the GC thread, all
+To prevent data races between the mutator threads and the GC thread, all
 GC-managed data structures that contain pointers to other GC-managed objects
 must be transactional in updates to those relationships. That is, a
 `GcRoot<Vec<i32>>` can contain mutable data where the mutability follows only
@@ -252,8 +252,8 @@ planned [tracing hooks][5].
 
 ## Generational Optimization
 
-Since the application threads write a journal of all root pointers, all
-pointers that the application uses will be recorded. It may be possible
+Since the mutator threads write a journal of all root pointers, all
+pointers that the mutator uses will be recorded. It may be possible
 for the GC thread to use that fact to process batches of journal changes
 in a generational manner, rather than having to trace the entire heap
 on every iteration. This needs further investigation.
@@ -267,7 +267,7 @@ may be particularly beneficial in conjunction with tracing the whole heap.
 
 Any form of copying or moving collector would require a custom allocator and
 probably a Baker-style read barrier. The barrier could be implemented on the
-root smart pointers with the added expense of the application threads having to
+root smart pointers with the added expense of the mutator threads having to
 check whether the pointer must be updated on every dereference. There are
 pitfalls here though as the Rust compiler may optimize dereferences with
 pointers taking temporary but hard-to-discover root in CPU registers. It may
