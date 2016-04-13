@@ -1,18 +1,19 @@
 ## An experimental garbage collector in Rust
 
 This is a very experimental garbage collector primarily built to research the viability of a
-pauseless mechanism that does not depend on compiler GC support. It currently in development
-and is not ready for use.
+write barrier mechanism that does not depend on compiler GC support.
+
+Please read the *[Introduction to mo-gc](http://pliniker.github.io/mo-gc-intro.html)* first.
 
 * [![Build Status](https://travis-ci.org/pliniker/mo-gc.svg?branch=master)](https://travis-ci.org/pliniker/mo-gc)
 
-### Further iformation
+### Further information
 
-* [Original draft design outline](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
-* [Some discussion](https://github.com/pliniker/mo-gc/issues/1) on the original design.
+* [API Documentation](https://pliniker.github.io/mo-gc/), but also see the examples.
 * [Implementation Notes](https://github.com/pliniker/mo-gc/blob/master/doc/Implementation-Notes.md)
-* [Documentation](https://pliniker.github.io/mo-gc/), but also see the examples.
-* [TODO](https://github.com/pliniker/mo-gc/blob/master/TODO.md) lists some issues.
+* [Original draft design outline](https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md)
+* [Original Discussion issue](https://github.com/pliniker/mo-gc/issues/1) on the original design.
+* [Ideas](http://pliniker.github.io/mo-gc-ideas.html) expands on the further direction in the introduction.
 
 ### See also
 
@@ -26,7 +27,7 @@ and is not ready for use.
 * Licensed under dual MIT/Apache-2.0
 * Named after [M-O](http://pixar.wikia.com/wiki/M-O).
 
-### Contributing
+### Getting involved
 
-Collaboration is welcome! See the TODO file for a list of things that need to be thought through,
-open an issue, email me with your questions and ideas or find me on `#rust` as `pliniker`.
+Collaboration is welcome! Read the linked information for a list of things that need to be thought
+through, open an issue, email me with your questions and ideas or find me on `#rust` as `pliniker`.
