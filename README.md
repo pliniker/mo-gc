@@ -28,7 +28,3 @@ Please read the [Introduction to mo-gc](http://pliniker.github.io/mo-gc-intro.ht
 * Licensed under dual MIT/Apache-2.0
 * Named after [M-O](http://pixar.wikia.com/wiki/M-O).
 
-### Getting involved
-
-Collaboration is welcome! Read the linked information for a list of things that need to be thought
-through, open an issue, email me with your questions and ideas or find me on `#rust` as `pliniker`.
