@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["StatsLogger","Type that provides counters for the GC to gain some measure of performance."]]});

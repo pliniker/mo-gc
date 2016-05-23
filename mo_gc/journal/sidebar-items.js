@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["make_journal","Return a Sender/Receiver pair that can be handed over to other threads. The capacity is the requested size of each internal buffer and will be rounded to the next power of two."]],"struct":[["Receiver","A journal reader type which can be sent to another thread"],["Sender","A journal writer type which can be sent to another thread"]]});

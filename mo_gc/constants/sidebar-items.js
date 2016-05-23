@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["BUFFER_RUN",""],["CACHE_LINE",""],["DEC",""],["FLAGS_MASK",""],["INC",""],["INC_BIT",""],["JOURNAL_BUFFER_SIZE",""],["JOURNAL_RUN",""],["MAJOR_COLLECT_THRESHOLD",""],["MARK_BIT",""],["MARK_MASK",""],["MAX_SLEEP_DUR",""],["MIN_SLEEP_DUR",""],["NEW",""],["NEW_BIT",""],["NEW_INC",""],["NEW_MASK",""],["PTR_MASK",""],["TRAVERSE_BIT",""]]});

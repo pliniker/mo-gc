@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `mo_gc` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, mo_gc">
+
+    <title>mo_gc - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'></p><script>window.sidebarCurrent = {name: 'mo_gc', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content mod">
+<h1 class='fqn'><span class='in-band'>Crate <a class='mod' href=''>mo_gc</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-0' class='srclink' href='../src/mo_gc/src/lib.rs.html#1-54' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'>
+<h1 id='mo-gc' class='section-header'><a href='#mo-gc'>mo-gc</a></h1>
+<p>A pauseless, concurrent, generational, parallel mark-and-sweep garbage collector.</p>
+
+<p>This is an experimental design to research an idea into a pauseless garbage collector.</p>
+
+<p>The GC handles multiple OS thread mutators without stopping their worlds. It does this by
+deferring reference counting of stack-rooted pointers to the GC thread through a journal
+of stack root changes. The journal itself is fast to write to, adding an amortized 25% to
+the cost of <code>Box::new()</code> using jemalloc for a 64 byte object.</p>
+
+<p>Thus the mutator never needs to be stopped for it&#39;s stack to be scanned or for any collection
+phase.</p>
+
+<p>See <a href="https://github.com/pliniker/mo-gc/blob/master/TODO.md">project TODO</a> for limitations.</p>
+
+<h2 id='usage' class='section-header'><a href='#usage'>Usage</a></h2>
+<p>Usage is best illustrated by the examples provided.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.AppThread.html'
+                                  title='mo_gc::AppThread'>AppThread</a></td>
+                           <td class='docblock short'>
+                                <p>An Application Thread, manages a thread-local reference to a tx channel</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.Gc.html'
+                                  title='mo_gc::Gc'>Gc</a></td>
+                           <td class='docblock short'>
+                                <p>Non-atomic pointer type. This type is <code>!Sync</code> and thus is useful for presenting a Rust-ish
+API to a data structure where aliasing and mutability must follow the standard rules: there
+can be only one mutator.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.GcAtomic.html'
+                                  title='mo_gc::GcAtomic'>GcAtomic</a></td>
+                           <td class='docblock short'>
+                                <p>Atomic pointer type that points at a traceable object. This type is <code>Sync</code> and can be used to
+build concurrent data structures.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.GcBox.html'
+                                  title='mo_gc::GcBox'>GcBox</a></td>
+                           <td class='docblock short'>
+                                <p>GcBox struct and traits: a boxed object that is GC managed</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.GcRoot.html'
+                                  title='mo_gc::GcRoot'>GcRoot</a></td>
+                           <td class='docblock short'>
+                                <p>Root smart pointer, sends reference count changes to the journal.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.GcThread.html'
+                                  title='mo_gc::GcThread'>GcThread</a></td>
+                           <td class='docblock short'>
+                                <p>The Garbage Collection thread handle.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.ParHeap.html'
+                                  title='mo_gc::ParHeap'>ParHeap</a></td>
+                           <td class='docblock short'>
+                                <p>This references all known GC-managed objects and handles marking and sweeping; parallel mark
+and sweep version.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.Receiver.html'
+                                  title='mo_gc::Receiver'>Receiver</a></td>
+                           <td class='docblock short'>
+                                <p>A journal reader type which can be sent to another thread</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.Sender.html'
+                                  title='mo_gc::Sender'>Sender</a></td>
+                           <td class='docblock short'>
+                                <p>A journal writer type which can be sent to another thread</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.TraceStack.html'
+                                  title='mo_gc::TraceStack'>TraceStack</a></td>
+                           <td class='docblock short'>
+                                <p>A type that contains a stack of objects to trace into. This type is separated out from the
+main Heap type so that different collection strategies can be implemented without affecting
+the client code. The <code>Trace</code> trait depends only this type, then, and not the whole Heap
+type.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.YoungHeap.html'
+                                  title='mo_gc::YoungHeap'>YoungHeap</a></td>
+                           <td class='docblock short'>
+                                <p>Type that composes all the things we need to run garbage collection on young generation
+objects.</p>
+                           </td>
+                       </tr></table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.BUFFER_RUN.html'
+                                  title='mo_gc::BUFFER_RUN'>BUFFER_RUN</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.CACHE_LINE.html'
+                                  title='mo_gc::CACHE_LINE'>CACHE_LINE</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.DEC.html'
+                                  title='mo_gc::DEC'>DEC</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.FLAGS_MASK.html'
+                                  title='mo_gc::FLAGS_MASK'>FLAGS_MASK</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.INC.html'
+                                  title='mo_gc::INC'>INC</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.INC_BIT.html'
+                                  title='mo_gc::INC_BIT'>INC_BIT</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.JOURNAL_BUFFER_SIZE.html'
+                                  title='mo_gc::JOURNAL_BUFFER_SIZE'>JOURNAL_BUFFER_SIZE</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.JOURNAL_RUN.html'
+                                  title='mo_gc::JOURNAL_RUN'>JOURNAL_RUN</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.MAJOR_COLLECT_THRESHOLD.html'
+                                  title='mo_gc::MAJOR_COLLECT_THRESHOLD'>MAJOR_COLLECT_THRESHOLD</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.MARK_BIT.html'
+                                  title='mo_gc::MARK_BIT'>MARK_BIT</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.MARK_MASK.html'
+                                  title='mo_gc::MARK_MASK'>MARK_MASK</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.MAX_SLEEP_DUR.html'
+                                  title='mo_gc::MAX_SLEEP_DUR'>MAX_SLEEP_DUR</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.MIN_SLEEP_DUR.html'
+                                  title='mo_gc::MIN_SLEEP_DUR'>MIN_SLEEP_DUR</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.NEW.html'
+                                  title='mo_gc::NEW'>NEW</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.NEW_BIT.html'
+                                  title='mo_gc::NEW_BIT'>NEW_BIT</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.NEW_INC.html'
+                                  title='mo_gc::NEW_INC'>NEW_INC</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.NEW_MASK.html'
+                                  title='mo_gc::NEW_MASK'>NEW_MASK</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.PTR_MASK.html'
+                                  title='mo_gc::PTR_MASK'>PTR_MASK</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.TRAVERSE_BIT.html'
+                                  title='mo_gc::TRAVERSE_BIT'>TRAVERSE_BIT</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class='trait' href='trait.CollectOps.html'
+                                  title='mo_gc::CollectOps'>CollectOps</a></td>
+                           <td class='docblock short'>
+                                <p>A trait that describes collection operations on a Heap</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='trait' href='trait.StatsLogger.html'
+                                  title='mo_gc::StatsLogger'>StatsLogger</a></td>
+                           <td class='docblock short'>
+                                <p>Type that provides counters for the GC to gain some measure of performance.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='trait' href='trait.Trace.html'
+                                  title='mo_gc::Trace'>Trace</a></td>
+                           <td class='docblock short'>
+                                <p>Trace trait. Every type that can be managed by the GC must implement this trait.
+This trait is unsafe in that incorrectly implementing it can cause Undefined Behavior.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='trait' href='trait.TraceOps.html'
+                                  title='mo_gc::TraceOps'>TraceOps</a></td>
+                           <td class='docblock short'>
+                                <p>A trait that describes Trace operations on a Heap</p>
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class='fn' href='fn.make_journal.html'
+                                  title='mo_gc::make_journal'>make_journal</a></td>
+                           <td class='docblock short'>
+                                <p>Return a Sender/Receiver pair that can be handed over to other threads. The capacity is the
+requested size of each internal buffer and will be rounded to the next power of two.</p>
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mo_gc";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

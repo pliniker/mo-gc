@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["YoungHeap","Type that composes all the things we need to run garbage collection on young generation objects."]]});

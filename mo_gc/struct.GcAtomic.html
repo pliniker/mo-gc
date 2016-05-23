@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `GcAtomic` struct in crate `mo_gc`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, GcAtomic">
+
+    <title>mo_gc::GcAtomic - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>mo_gc</a></p><script>window.sidebarCurrent = {name: 'GcAtomic', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>mo_gc</a>::<wbr><a class='struct' href=''>GcAtomic</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-35' class='srclink' href='../src/mo_gc/src/appthread.rs.html#62-64' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct GcAtomic&lt;T: <a class='trait' href='../mo_gc/trait.Trace.html' title='mo_gc::Trace'>Trace</a>&gt; {
+    // some fields omitted
+}</pre><div class='docblock'><p>Atomic pointer type that points at a traceable object. This type is <code>Sync</code> and can be used to
+build concurrent data structures.</p>
+
+<p>This type should be used inside data structures to reference other GC-managed objects, but
+provides interior mutability and atomic methods.</p>
+
+<p>TODO: cas, swap etc for GcRoot and Gc</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;T: <a class='trait' href='../mo_gc/trait.Trace.html' title='mo_gc::Trace'>Trace</a>&gt; <a class='struct' href='../mo_gc/struct.GcAtomic.html' title='mo_gc::GcAtomic'>GcAtomic</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-142' class='srclink' href='../src/mo_gc/src/appthread.rs.html#296-360' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.null' class='method'><code>fn <a href='#method.null' class='fnname'>null</a>() -&gt; <a class='struct' href='../mo_gc/struct.GcAtomic.html' title='mo_gc::GcAtomic'>GcAtomic</a>&lt;T&gt;</code></h4>
+<div class='docblock'><p>Instantiate a new null pointer</p>
+</div><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(value: T) -&gt; <a class='struct' href='../mo_gc/struct.GcAtomic.html' title='mo_gc::GcAtomic'>GcAtomic</a>&lt;T&gt;</code></h4>
+<div class='docblock'><p>Instantiate a new pointer, moving <code>value</code> to the heap. Writes to the journal.</p>
+</div><h4 id='method.load_into_root' class='method'><code>fn <a href='#method.load_into_root' class='fnname'>load_into_root</a>(&amp;self, order: <a class='enum' href='https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html' title='core::sync::atomic::Ordering'>Ordering</a>) -&gt; <a class='struct' href='../mo_gc/struct.GcRoot.html' title='mo_gc::GcRoot'>GcRoot</a>&lt;T&gt;</code></h4>
+<div class='docblock'><p>Root the pointer by loading it into a <code>GcRoot&lt;T&gt;</code></p>
+
+<p>Panics if <code>order</code> is <code>Release</code> or <code>AcqRel</code>.</p>
+</div><h4 id='method.load_into_gc' class='method'><code>fn <a href='#method.load_into_gc' class='fnname'>load_into_gc</a>(&amp;self, order: <a class='enum' href='https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html' title='core::sync::atomic::Ordering'>Ordering</a>) -&gt; <a class='struct' href='../mo_gc/struct.Gc.html' title='mo_gc::Gc'>Gc</a>&lt;T&gt;</code></h4>
+<div class='docblock'><p>Copy the pointer into a new <code>Gc</code> instance.</p>
+
+<p>Panics if <code>order</code> is <code>Release</code> or <code>AcqRel</code>.</p>
+</div><h4 id='method.load_raw' class='method'><code>fn <a href='#method.load_raw' class='fnname'>load_raw</a>(&amp;self, order: <a class='enum' href='https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html' title='core::sync::atomic::Ordering'>Ordering</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut </a><a class='struct' href='../mo_gc/struct.GcBox.html' title='mo_gc::GcBox'>GcBox</a>&lt;T&gt;</code></h4>
+<div class='docblock'><p>Fetch the current raw pointer value</p>
+
+<p>Panics if <code>order</code> is <code>Release</code> or <code>AcqRel</code>.</p>
+</div><h4 id='method.store_from_root' class='method'><code>fn <a href='#method.store_from_root' class='fnname'>store_from_root</a>(&amp;self, root: <a class='struct' href='../mo_gc/struct.GcRoot.html' title='mo_gc::GcRoot'>GcRoot</a>&lt;T&gt;, order: <a class='enum' href='https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html' title='core::sync::atomic::Ordering'>Ordering</a>)</code></h4>
+<div class='docblock'><p>Replace the current pointer value with the pointer from the given <code>GcRoot</code>.</p>
+
+<p>Panics if <code>order</code> is <code>Acquire</code> or <code>AcqRel</code>.</p>
+</div><h4 id='method.store_from_gc' class='method'><code>fn <a href='#method.store_from_gc' class='fnname'>store_from_gc</a>(&amp;self, gc: <a class='struct' href='../mo_gc/struct.Gc.html' title='mo_gc::Gc'>Gc</a>&lt;T&gt;, order: <a class='enum' href='https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html' title='core::sync::atomic::Ordering'>Ordering</a>)</code></h4>
+<div class='docblock'><p>Replace the current pointer value with the pointer from the given <code>Gc</code>.</p>
+
+<p>Panics of <code>order</code> is <code>Acquire</code> or <code>AcqRel</code>.</p>
+</div><h4 id='method.store_raw' class='method'><code>fn <a href='#method.store_raw' class='fnname'>store_raw</a>(&amp;self, ptr: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut </a><a class='struct' href='../mo_gc/struct.GcBox.html' title='mo_gc::GcBox'>GcBox</a>&lt;T&gt;, order: <a class='enum' href='https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html' title='core::sync::atomic::Ordering'>Ordering</a>)</code></h4>
+<div class='docblock'><p>Replace the current pointer value with the given raw pointer</p>
+
+<p>Panics if <code>order</code> is <code>Acquire</code> or <code>AcqRel</code>.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mo_gc";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

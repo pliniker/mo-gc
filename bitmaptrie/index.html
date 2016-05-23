@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `bitmaptrie` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, bitmaptrie">
+
+    <title>bitmaptrie - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'></p><script>window.sidebarCurrent = {name: 'bitmaptrie', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content mod">
+<h1 class='fqn'><span class='in-band'>Crate <a class='mod' href=''>bitmaptrie</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-0' class='srclink' href='../src/bitmaptrie/lib.rs.html#1-1234' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'>
+<h1 id='bitmappped-vector-trie' class='section-header'><a href='#bitmappped-vector-trie'>Bitmappped Vector Trie</a></h1>
+<p>A bitmapped vector trie with node compression and a path cache. Values are always sorted by
+their index; thus iterating is always in index order.</p>
+
+<p>The trie does not prescribe a length or capacity beside the range of values of it&#39;s index:
+usize. It could be used to compose a data structure that does behave more like Vec.</p>
+
+<p>The branching factor is the word-size: 32 or 64. This makes the depth 6 for 32bit systems and
+11 for 64bit systems. Because of the path cache, spatially dense indexes will not cause full
+depth traversal.</p>
+
+<p>There is support for sharding the Trie such that each shard might be passed to a different
+thread for processing.</p>
+
+<p>Performance improvements:</p>
+
+<ul>
+<li>enable popcnt instruction when supported</li>
+</ul>
+
+<p>Possible code improvements:</p>
+
+<ul>
+<li>with better use of generics, some code duplication might be avoided</li>
+</ul>
+
+<h1 id='basic-usage' class='section-header'><a href='#basic-usage'>Basic Usage</a></h1>
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>bitmaptrie</span>::<span class='ident'>Trie</span>;
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>t</span>: <span class='ident'>Trie</span><span class='op'>&lt;</span><span class='ident'>String</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Trie</span>::<span class='ident'>new</span>();
+
+<span class='comment'>// set a key/value. Will overwrite any previous value at the index</span>
+<span class='ident'>t</span>.<span class='ident'>set</span>(<span class='number'>123</span>, <span class='ident'>String</span>::<span class='ident'>from</span>(<span class='string'>&quot;testing 123&quot;</span>));
+
+<span class='comment'>// look up a key returning a reference to the value if it exists</span>
+<span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Some</span>(<span class='kw-2'>ref</span> <span class='ident'>value</span>) <span class='op'>=</span> <span class='ident'>t</span>.<span class='ident'>get</span>(<span class='number'>123</span>) {
+    <span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;value = {}&quot;</span>, <span class='op'>*</span><span class='ident'>value</span>);
+}
+
+<span class='comment'>// will remove the only entry</span>
+<span class='ident'>t</span>.<span class='ident'>retain_if</span>(<span class='op'>|</span><span class='ident'>key</span>, <span class='ident'>_value</span><span class='op'>|</span> <span class='ident'>key</span> <span class='op'>!=</span> <span class='number'>123</span>);</pre>
+
+<h1 id='thread-safety' class='section-header'><a href='#thread-safety'>Thread Safety</a></h1>
+<p>The trie can be borrowed in two ways:
+ * For <code>T: Send</code>: mutable sharding, where each shard can safely be accessed mutably in it&#39;s
+   own thread, allowing destructive updates. This is analagous to <code>Vec::chunks()</code>.
+ * For <code>T: Send + Sync</code>: a Sync-safe borrow that can itself be sharded, but prevents
+   destructive updates. This is analagous to a borrow of <code>Vec&lt;T: Send + Sync&gt;</code>.</p>
+
+<p>Since the trie is borrowed and not shared using something like <code>Arc</code>, it follows that these
+methods will only work with scoped threading.</p>
+
+<p>Sharding works by doing a breadth-first search into the trie to find the depth at which there
+are at least the number of interior nodes as requested. The returned number of nodes may be
+much greater than the requested number, or may be less if the trie is small.</p>
+
+<p>As there is no knowledge of the balanced-ness of the trie, the more shards that are returned by
+<code>borrow_sharded()</code>, the more evenly the number of leaves on each shard will likely be
+distributed.</p>
+
+<h2 id='mutable-sharding' class='section-header'><a href='#mutable-sharding'>Mutable Sharding</a></h2>
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>bitmaptrie</span>::<span class='ident'>Trie</span>;
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>t</span>: <span class='ident'>Trie</span><span class='op'>&lt;</span><span class='ident'>String</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Trie</span>::<span class='ident'>new</span>();
+<span class='ident'>t</span>.<span class='ident'>set</span>(<span class='number'>123</span>, <span class='ident'>String</span>::<span class='ident'>from</span>(<span class='string'>&quot;testing xyzzy&quot;</span>));
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>shards</span> <span class='op'>=</span> <span class='ident'>t</span>.<span class='ident'>borrow_sharded</span>(<span class='number'>4</span>); <span class='comment'>// shard at least 4 ways if possible</span>
+<span class='kw'>for</span> <span class='kw-2'>mut</span> <span class='ident'>shard</span> <span class='kw'>in</span> <span class='ident'>shards</span>.<span class='ident'>drain</span>() {
+    <span class='comment'>// launch a scoped thread or submit a task to a queue here and move shard into it for</span>
+    <span class='comment'>// processing</span>
+
+    <span class='comment'>// destructive update to the trie, only touching this one shard</span>
+    <span class='ident'>shard</span>.<span class='ident'>retain_if</span>(<span class='op'>|</span>_, <span class='ident'>value</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>value</span> <span class='op'>==</span> <span class='ident'>String</span>::<span class='ident'>from</span>(<span class='string'>&quot;testing 123&quot;</span>));
+}</pre>
+
+<h2 id='sync-safe-borrow-and-sharding' class='section-header'><a href='#sync-safe-borrow-and-sharding'>Sync-safe Borrow and Sharding</a></h2>
+<p><code>T</code> in <code>Trie&lt;T&gt;</code> must be Sync in order to make value changes.</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>bitmaptrie</span>::<span class='ident'>Trie</span>;
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>t</span>: <span class='ident'>Trie</span><span class='op'>&lt;</span><span class='ident'>usize</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Trie</span>::<span class='ident'>new</span>();
+<span class='ident'>t</span>.<span class='ident'>set</span>(<span class='number'>123</span>, <span class='number'>246</span>);
+
+<span class='kw'>let</span> <span class='ident'>num_threads</span> <span class='op'>=</span> <span class='number'>4</span>;
+
+<span class='kw'>let</span> <span class='ident'>shared</span> <span class='op'>=</span> <span class='ident'>t</span>.<span class='ident'>borrow_sync</span>();
+<span class='kw'>let</span> <span class='ident'>shards</span> <span class='op'>=</span> <span class='ident'>shared</span>.<span class='ident'>borrow_sharded</span>(<span class='ident'>num_threads</span>);
+
+<span class='kw'>for</span> <span class='ident'>shard</span> <span class='kw'>in</span> <span class='ident'>shards</span>.<span class='ident'>iter</span>() {
+    <span class='kw'>let</span> <span class='ident'>shared</span> <span class='op'>=</span> <span class='ident'>shared</span>.<span class='ident'>clone</span>();
+    <span class='comment'>// launch a scoped thread here or submit a task to a queue and move shard and borrow into</span>
+    <span class='comment'>// it for processing</span>
+
+    <span class='comment'>// iterate over the shard&#39;s key/values</span>
+    <span class='kw'>for</span> (_, <span class='ident'>value</span>) <span class='kw'>in</span> <span class='ident'>shard</span>.<span class='ident'>iter</span>() {
+        <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Some</span>(<span class='ident'>other</span>) <span class='op'>=</span> <span class='ident'>shared</span>.<span class='ident'>get</span>(<span class='op'>*</span><span class='ident'>value</span>) {
+            <span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;found a cross reference&quot;</span>);
+        }
+    }
+}</pre>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.BorrowShardImmut.html'
+                                  title='bitmaptrie::BorrowShardImmut'>BorrowShardImmut</a></td>
+                           <td class='docblock short'>
+                                <p>Borrows a BorrowSync, splitting it into interior nodes each of which can be iterated over
+separately while still giving access to the full Trie.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.BorrowShardMut.html'
+                                  title='bitmaptrie::BorrowShardMut'>BorrowShardMut</a></td>
+                           <td class='docblock short'>
+                                <p>Type that borrows a Trie mutably, giving an iterable type that returns interior nodes on
+which structure-mutating operations can be performed. This can be used to parallelize
+destructive operations.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.BorrowSync.html'
+                                  title='bitmaptrie::BorrowSync'>BorrowSync</a></td>
+                           <td class='docblock short'>
+                                <p>Borrows a Trie exposing a Sync-type-safe subset of it&#39;s methods. No structure
+modifying methods are included. Each borrow gets it&#39;s own path cache.
+The lifetime of this type is the lifetime of the mutable borrow.
+This can be used to parallelize structure-immutant changes.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.CompVec.html'
+                                  title='bitmaptrie::CompVec'>CompVec</a></td>
+                           <td class='docblock short'>
+                                <p>A simple sparse vector.  The <code>valid</code> word is a bitmap of which indeces
+have values.  The maximum size of this vector is equal to the number of
+bits in a word (32 or 64).</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.Iter.html'
+                                  title='bitmaptrie::Iter'>Iter</a></td>
+                           <td class='docblock short'>
+                                <p>A type that implements Iterator for CompVec</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.Iter.html'
+                                  title='bitmaptrie::Iter'>Iter</a></td>
+                           <td class='docblock short'>
+                                <p>Iterator over <code>(key, &amp;T)</code>s of <code>Trie&lt;T&gt;</code></p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.IterMut.html'
+                                  title='bitmaptrie::IterMut'>IterMut</a></td>
+                           <td class='docblock short'>
+                                <p>A type that implements Iterator for mutable values of CompVec</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.IterMut.html'
+                                  title='bitmaptrie::IterMut'>IterMut</a></td>
+                           <td class='docblock short'>
+                                <p>Iterator over mutable <code>(key, &amp;mut T)</code>s of <code>Trie&lt;T&gt;</code></p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.ShardImmut.html'
+                                  title='bitmaptrie::ShardImmut'>ShardImmut</a></td>
+                           <td class='docblock short'>
+                                <p>Immutable borrow of an interior Trie node.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.ShardMut.html'
+                                  title='bitmaptrie::ShardMut'>ShardMut</a></td>
+                           <td class='docblock short'>
+                                <p>A type that references an interior Trie node. For splitting a Trie into sub-nodes, each of
+which can be passed to a different thread for mutable structural changes.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='struct' href='struct.Trie.html'
+                                  title='bitmaptrie::Trie'>Trie</a></td>
+                           <td class='docblock short'>
+                                <p>Path-cached bitmap trie type. The key is always a <code>usize</code>.</p>
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class='enum' href='enum.TrieNode.html'
+                                  title='bitmaptrie::TrieNode'>TrieNode</a></td>
+                           <td class='docblock short'>
+                                <p>An interior (branch) or exterior (leaf) trie node, defined recursively.</p>
+                           </td>
+                       </tr></table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.USIZE_BYTES.html'
+                                  title='bitmaptrie::USIZE_BYTES'>USIZE_BYTES</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.VALID_MAX.html'
+                                  title='bitmaptrie::VALID_MAX'>VALID_MAX</a></td>
+                           <td class='docblock short'>
+                                <p>First value to use in CompVec::next(masked__valid, ...)</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class='constant' href='constant.WORD_SIZE.html'
+                                  title='bitmaptrie::WORD_SIZE'>WORD_SIZE</a></td>
+                           <td class='docblock short'>
+                                
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "bitmaptrie";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

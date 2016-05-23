@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `GcThread` struct in crate `mo_gc`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, GcThread">
+
+    <title>mo_gc::GcThread - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>mo_gc</a></p><script>window.sidebarCurrent = {name: 'GcThread', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>mo_gc</a>::<wbr><a class='struct' href=''>GcThread</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-213' class='srclink' href='../src/mo_gc/src/gcthread.rs.html#33-39' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct GcThread&lt;S: <a class='trait' href='../mo_gc/trait.StatsLogger.html' title='mo_gc::StatsLogger'>StatsLogger</a>&gt; {
+    // some fields omitted
+}</pre><div class='docblock'><p>The Garbage Collection thread handle.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl <a class='struct' href='../mo_gc/struct.GcThread.html' title='mo_gc::GcThread'>GcThread</a>&lt;DefaultLogger&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-217' class='srclink' href='../src/mo_gc/src/gcthread.rs.html#42-49' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.spawn_gc' class='method'><code>fn <a href='#method.spawn_gc' class='fnname'>spawn_gc</a>() -&gt; <a class='struct' href='../mo_gc/struct.GcThread.html' title='mo_gc::GcThread'>GcThread</a>&lt;DefaultLogger&gt;</code></h4>
+<div class='docblock'><p>Spawn a GC thread with default parameters: a <code>ParHeap</code> and a <code>DefaultLogger</code> parallelized
+across all available CPUs.</p>
+</div></div><h3 class='impl'><span class='in-band'><code>impl&lt;S: <a class='trait' href='../mo_gc/trait.StatsLogger.html' title='mo_gc::StatsLogger'>StatsLogger</a> + 'static&gt; <a class='struct' href='../mo_gc/struct.GcThread.html' title='mo_gc::GcThread'>GcThread</a>&lt;S&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-220' class='srclink' href='../src/mo_gc/src/gcthread.rs.html#52-83' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.spawn_gc_with' class='method'><code>fn <a href='#method.spawn_gc_with' class='fnname'>spawn_gc_with</a>&lt;T&gt;(num_threads: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, mature: T, logger: S) -&gt; <a class='struct' href='../mo_gc/struct.GcThread.html' title='mo_gc::GcThread'>GcThread</a>&lt;S&gt; <span class='where'>where T: <a class='trait' href='../mo_gc/trait.CollectOps.html' title='mo_gc::CollectOps'>CollectOps</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + 'static</span></code></h4>
+<div class='docblock'><p>Run the GC on the current thread, spawning another thread to run the application function
+on. Returns the AppThread std::thread::Thread handle. Caller must provide a custom
+StatsLogger implementation and a CollectOps heap implementation.</p>
+</div><h4 id='method.spawn' class='method'><code>fn <a href='#method.spawn' class='fnname'>spawn</a>&lt;F, T&gt;(&amp;self, f: F) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/std/thread/struct.JoinHandle.html' title='std::thread::JoinHandle'>JoinHandle</a>&lt;T&gt; <span class='where'>where F: <a class='trait' href='https://doc.rust-lang.org/nightly/core/ops/trait.FnOnce.html' title='core::ops::FnOnce'>FnOnce</a>() -&gt; T, F: <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + 'static, T: <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + 'static</span></code></h4>
+<div class='docblock'><p>Spawn an app thread that journals to the GC thread.</p>
+</div><h4 id='method.join' class='method'><code>fn <a href='#method.join' class='fnname'>join</a>(self) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;S, <a class='struct' href='https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html' title='alloc::boxed::Box'>Box</a>&lt;<a class='trait' href='https://doc.rust-lang.org/nightly/core/any/trait.Any.html' title='core::any::Any'>Any</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + 'static&gt;&gt;</code></h4>
+<div class='docblock'><p>Wait for the GC thread to finish. On success, returns the object that implements
+<code>StatsLogger</code> for the calling thread to examine.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mo_gc";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

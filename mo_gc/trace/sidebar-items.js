@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["Trace","Trace trait. Every type that can be managed by the GC must implement this trait. This trait is unsafe in that incorrectly implementing it can cause Undefined Behavior."]]});

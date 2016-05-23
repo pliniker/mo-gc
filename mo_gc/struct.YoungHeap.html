@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `YoungHeap` struct in crate `mo_gc`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, YoungHeap">
+
+    <title>mo_gc::YoungHeap - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>mo_gc</a></p><script>window.sidebarCurrent = {name: 'YoungHeap', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>mo_gc</a>::<wbr><a class='struct' href=''>YoungHeap</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-708' class='srclink' href='../src/mo_gc/src/youngheap.rs.html#36-54' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct YoungHeap&lt;S: <a class='trait' href='../mo_gc/trait.StatsLogger.html' title='mo_gc::StatsLogger'>StatsLogger</a>, T: <a class='trait' href='../mo_gc/trait.CollectOps.html' title='mo_gc::CollectOps'>CollectOps</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a>&gt; {
+    // some fields omitted
+}</pre><div class='docblock'><p>Type that composes all the things we need to run garbage collection on young generation
+objects.</p>
+
+<p>The roots trie maps object addresses to their reference counts, vtables and <code>NEW</code> object
+flags.</p>
+
+<p>During tracing, positive reference count objects and non-<code>NEW</code> objects are considered
+possible roots and only <code>NEW</code> objects are considered for marking and sweeping. Entries
+can be both roots and <code>NEW</code>.</p>
+
+<p>Collection is run in a thread pool across all CPUs by default by sharding the root trie
+across threads.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;S: <a class='trait' href='../mo_gc/trait.StatsLogger.html' title='mo_gc::StatsLogger'>StatsLogger</a>, T: <a class='trait' href='../mo_gc/trait.CollectOps.html' title='mo_gc::CollectOps'>CollectOps</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a>&gt; <a class='struct' href='../mo_gc/struct.YoungHeap.html' title='mo_gc::YoungHeap'>YoungHeap</a>&lt;S, T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-717' class='srclink' href='../src/mo_gc/src/youngheap.rs.html#57-331' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(num_threads: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, mature: T, logger: S) -&gt; <a class='struct' href='../mo_gc/struct.YoungHeap.html' title='mo_gc::YoungHeap'>YoungHeap</a>&lt;S, T&gt;</code></h4>
+<div class='docblock'><p>Create a new young generation heap and roots reference count tracker</p>
+</div><h4 id='method.add_journal' class='method'><code>fn <a href='#method.add_journal' class='fnname'>add_journal</a>(&amp;mut self, recv: EntryReceiver)</code></h4>
+<div class='docblock'><p>Add a new journal to the list of journals to read</p>
+</div><h4 id='method.num_journals' class='method'><code>fn <a href='#method.num_journals' class='fnname'>num_journals</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
+<div class='docblock'><p>Returns the number of journals currently connected to the GC</p>
+</div><h4 id='method.read_journals' class='method'><code>fn <a href='#method.read_journals' class='fnname'>read_journals</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
+<div class='docblock'><p>Read all journals for a number of iterations, updating the roots and keeping a reference
+count increment for each, and putting decrements into the deferred buffer.</p>
+
+<p>This function is single-threaded and is the biggest GC throughput bottleneck. Setting a
+value in the trie is slow compared to allocation and writing/reading the journal.</p>
+
+<p>Easily consumes 80% of linear GC time. TODO: parallelize this function.</p>
+
+<p>Returns the number of journal entries read.</p>
+</div><h4 id='method.minor_collection' class='method'><code>fn <a href='#method.minor_collection' class='fnname'>minor_collection</a>(&amp;mut self, pool: &amp;mut <a class='struct' href='../scoped_pool/struct.Pool.html' title='scoped_pool::Pool'>Pool</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
+<div class='docblock'><p>Do a young generation collection. Returns the number of new objects in the young generation
+heap.</p>
+</div><h4 id='method.major_collection' class='method'><code>fn <a href='#method.major_collection' class='fnname'>major_collection</a>(&amp;mut self, pool: &amp;mut <a class='struct' href='../scoped_pool/struct.Pool.html' title='scoped_pool::Pool'>Pool</a>)</code></h4>
+<div class='docblock'><p>Do a major collection, moving <code>NEW</code> objects to the mature heap and tracing the mature heap</p>
+</div><h4 id='method.logger' class='method'><code>fn <a href='#method.logger' class='fnname'>logger</a>(&amp;mut self) -&gt; &amp;mut S</code></h4>
+<div class='docblock'><p>Return a reference to the logger</p>
+</div><h4 id='method.shutdown' class='method'><code>fn <a href='#method.shutdown' class='fnname'>shutdown</a>(self) -&gt; S</code></h4>
+<div class='docblock'><p>Call to return the logger on shutdown</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mo_gc";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
